@@ -10,22 +10,6 @@ import json
 import os
 import uuid
 
-def get_eye_icon_base64():
-    """Get base64 encoded eye icon"""
-    try:
-        with open("icons/lucide--eye.png", "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    except FileNotFoundError:
-        # Fallback to text if icon not found
-        return None
-
-def eye_icon_html(size: int = 16) -> str:
-    """Generate eye icon HTML"""
-    icon_b64 = get_eye_icon_base64()
-    if icon_b64:
-        return f'<img src="data:image/png;base64,{icon_b64}" style="width: {size}px; height: {size}px; vertical-align: middle; margin-right: 4px;">'
-    else:
-        return "▶"  # Fallback to text
 
 def lucide_icon(name: str, size: int = 16, color: str = "currentColor") -> str:
     """Generate Lucide icon HTML"""
@@ -1303,25 +1287,9 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
                 
                 with col1:
-                    # Create button with embedded eye icon
-                    eye_icon = eye_icon_html(16)
-                    if eye_icon and eye_icon.startswith('<img'):
-                        # Use HTML in button text with the icon
-                        button_html = f"{eye_icon}"
-                        st.markdown(f"""
-                        <div style="margin-bottom: 0.5rem; text-align: center;">
-                            {button_html}
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if st.button("View", key=f"view_{artifact_name}", 
-                                   help="Preview data", use_container_width=True):
-                            st.session_state[f"show_popup_{artifact_name}"] = True
-                    else:
-                        # Fallback to emoji if icon not found
-                        if st.button("👁 View", key=f"view_{artifact_name}", 
-                                   help="Preview data", use_container_width=True):
-                            st.session_state[f"show_popup_{artifact_name}"] = True
+                    if st.button("◉ View", key=f"view_{artifact_name}", 
+                               help="Preview data", use_container_width=True):
+                        st.session_state[f"show_popup_{artifact_name}"] = True
                 
                 with col2:
                     if st.button("✏ Rename", key=f"rename_{artifact_name}", 
