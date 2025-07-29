@@ -399,15 +399,19 @@ class DataProcessor:
             if self.cleaned_df is not None:
                 # Apply column keeping/removal *before* other operations, as it affects columns
                 columns_to_keep = options.get('columns_to_keep')
-                if columns_to_keep is not None:
+                if columns_to_keep is not None and len(columns_to_keep) > 0:
                     # Ensure all columns to keep actually exist in the DataFrame
                     existing_cols = self.cleaned_df.columns.tolist()
                     cols_to_select = [col for col in columns_to_keep if col in existing_cols]
-                    self.cleaned_df = self.cleaned_df[cols_to_select]
+                    if cols_to_select:  # Only filter if we have valid columns to keep
+                        self.cleaned_df = self.cleaned_df[cols_to_select]
+                        st.info(f"✅ Kept {len(cols_to_select)} selected columns: {', '.join(cols_to_select)}")
                     # Warn if some selected columns were not found
                     removed_missing_cols = set(columns_to_keep) - set(cols_to_select)
                     if removed_missing_cols:
                         st.warning(f"Columns not found in the dataset and therefore removed: {', '.join(removed_missing_cols)}")
+                elif columns_to_keep is not None and len(columns_to_keep) == 0:
+                    st.warning("⚠️ No columns selected to keep. All columns will be retained.")
 
                 # Apply other cleaning operations
                 if options.get('remove_duplicates', False):
@@ -715,13 +719,14 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col2:
                     if st.button("💾 Save as Artifact", type="primary", use_container_width=True):
                         if artifact_name.strip():
+                            # Use the cleaned dataframe which already has column selection applied
                             artifact = DataArtifact(
                                 name=artifact_name.strip(),
-                                dataframe=processor.cleaned_df,
+                                dataframe=processor.cleaned_df.copy(),  # Ensure we copy the cleaned data
                                 source="cleaning"
                             )
                             if artifact_manager.save_artifact(artifact):
-                                st.success(f"✅ Saved as artifact: {artifact_name}")
+                                st.success(f"✅ Saved as artifact: {artifact_name} with {len(processor.cleaned_df.columns)} columns")
                                 st.rerun()
                         else:
                             st.error("Please enter an artifact name")
