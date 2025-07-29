@@ -1303,21 +1303,30 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
                 
                 with col1:
-                    # Display eye icon above button
-                    eye_icon = eye_icon_html(16)
+                    # Create custom button with eye icon inside
+                    eye_icon = eye_icon_html(20)
                     if eye_icon and eye_icon.startswith('<img'):
                         st.markdown(f"""
-                        <div style="text-align: center; margin-bottom: 0.25rem;">
-                            {eye_icon}
+                        <div style="margin-bottom: 0.5rem;">
+                            <button onclick="document.querySelector('[data-testid*=\"baseButton\"][key*=\"view_{artifact_name}\"]').click()" 
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 0.5rem; 
+                                           background: white; cursor: pointer; display: flex; align-items: center; 
+                                           justify-content: center; transition: all 0.3s ease;"
+                                    onmouseover="this.style.background='#f0f9ff'; this.style.borderColor='#0ea5e9';"
+                                    onmouseout="this.style.background='white'; this.style.borderColor='#ddd';"
+                                    title="Preview data">
+                                {eye_icon}
+                            </button>
                         </div>
                         """, unsafe_allow_html=True)
-                        button_text = "View"
+                        # Hidden button for functionality
+                        if st.button("", key=f"view_{artifact_name}", help="Preview data"):
+                            st.session_state[f"show_popup_{artifact_name}"] = True
                     else:
-                        button_text = "👁 View"
-                    
-                    if st.button(button_text, key=f"view_{artifact_name}", 
-                               help="Preview data", use_container_width=True):
-                        st.session_state[f"show_popup_{artifact_name}"] = True
+                        # Fallback to emoji if icon not found
+                        if st.button("👁", key=f"view_{artifact_name}", 
+                                   help="Preview data", use_container_width=True):
+                            st.session_state[f"show_popup_{artifact_name}"] = True
                 
                 with col2:
                     if st.button("✏ Rename", key=f"rename_{artifact_name}", 
