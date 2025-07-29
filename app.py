@@ -767,6 +767,9 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                 )
                             
                             st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
+                            # Clear any cached column selections to force refresh
+                            if "cols_to_keep_clean" in st.session_state:
+                                del st.session_state["cols_to_keep_clean"]
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
@@ -775,6 +778,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
 
             # NEW: Column Management section (after adding columns so it includes new columns)
             with st.expander("🛠️ Column Management", expanded=False):
+                # Recalculate columns every time to include newly added columns
                 current_columns_for_selection = []
                 # Determine columns available for selection based on merge preference
                 if merge_files and len(processor.dataframes) > 1:
@@ -791,10 +795,23 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 columns_to_keep = []
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
+                    
+                    # Get current selection or default to all columns
+                    current_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
+                    
+                    # Ensure current selection only includes columns that still exist
+                    valid_selection = [col for col in current_selection if col in current_columns_for_selection]
+                    
+                    # If we have new columns not in the current selection, add them
+                    new_columns = [col for col in current_columns_for_selection if col not in valid_selection]
+                    if new_columns:
+                        valid_selection.extend(new_columns)
+                        st.info(f"🆕 New columns detected and auto-selected: {', '.join(new_columns)}")
+                    
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
                         options=current_columns_for_selection,
-                        default=current_columns_for_selection, # All selected by default
+                        default=valid_selection,
                         key="cols_to_keep_clean"
                     )
                 else:
