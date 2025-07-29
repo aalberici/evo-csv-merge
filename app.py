@@ -6,7 +6,7 @@ from typing import List, Tuple, Optional, Dict, Any
 import difflib
 import base64
 from datetime import datetime
-import pickle
+import json
 import os
 
 # Page configuration
@@ -143,13 +143,37 @@ class DataArtifact:
     
     def get_summary(self) -> str:
         return f"{self.name} | {self.rows:,} rows × {self.columns} cols | {self.memory_mb:.1f}MB | {self.source}"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert artifact to dictionary for JSON serialization"""
+        return {
+            'name': self.name,
+            'dataframe': self.dataframe.to_json(orient='records'),
+            'source': self.source,
+            'created_at': self.created_at.isoformat(),
+            'rows': self.rows,
+            'columns': self.columns,
+            'memory_mb': self.memory_mb
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DataArtifact':
+        """Create artifact from dictionary"""
+        df = pd.read_json(data['dataframe'], orient='records')
+        artifact = cls(
+            name=data['name'],
+            dataframe=df,
+            source=data['source'],
+            created_at=datetime.fromisoformat(data['created_at'])
+        )
+        return artifact
 
 class ArtifactManager:
     """Manages data artifacts across the application with persistent storage"""
     
     def __init__(self):
         self.artifacts_dir = "artifacts"
-        self.artifacts_file = os.path.join(self.artifacts_dir, "artifacts.pkl")
+        self.artifacts_file = os.path.join(self.artifacts_dir, "artifacts.json")
         
         # Create artifacts directory if it doesn't exist
         if not os.path.exists(self.artifacts_dir):
@@ -162,8 +186,11 @@ class ArtifactManager:
         """Load artifacts from persistent storage"""
         try:
             if os.path.exists(self.artifacts_file):
-                with open(self.artifacts_file, 'rb') as f:
-                    artifacts = pickle.load(f)
+                with open(self.artifacts_file, 'r', encoding='utf-8') as f:
+                    artifacts_data = json.load(f)
+                    artifacts = {}
+                    for name, data in artifacts_data.items():
+                        artifacts[name] = DataArtifact.from_dict(data)
                     st.session_state.artifacts = artifacts
             else:
                 st.session_state.artifacts = {}
@@ -174,8 +201,12 @@ class ArtifactManager:
     def _save_artifacts_to_disk(self):
         """Save artifacts to persistent storage"""
         try:
-            with open(self.artifacts_file, 'wb') as f:
-                pickle.dump(st.session_state.artifacts, f)
+            artifacts_data = {}
+            for name, artifact in st.session_state.artifacts.items():
+                artifacts_data[name] = artifact.to_dict()
+            
+            with open(self.artifacts_file, 'w', encoding='utf-8') as f:
+                json.dump(artifacts_data, f, indent=2)
             return True
         except Exception as e:
             st.error(f"Failed to save artifacts to disk: {str(e)}")
@@ -770,13 +801,18 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                     processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
                                 )
                             
-                            # Update the column selection to include the new column
-                            current_selection = st.session_state.get("cols_to_keep_clean", [])
-                            if new_col_name.strip() not in current_selection:
-                                current_selection.append(new_col_name.strip())
-                                st.session_state["cols_to_keep_clean"] = current_selection
+                            # Only add the new column to selection if user hasn't made any column selections yet
+                            if "cols_to_keep_clean" not in st.session_state:
+                                # First time - include all columns including the new one
+                                st.session_state["cols_to_keep_clean"] = []
+                            else:
+                                # User has made selections - add new column to their existing selection
+                                current_selection = st.session_state.get("cols_to_keep_clean", [])
+                                if new_col_name.strip() not in current_selection:
+                                    current_selection.append(new_col_name.strip())
+                                    st.session_state["cols_to_keep_clean"] = current_selection
                             
-                            st.success(f"✅ Column '{new_col_name.strip()}' added to source data and selected!")
+                            st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
@@ -803,23 +839,19 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
                     
-                    # Get current selection or default to all columns
-                    current_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
-                    
-                    # Ensure current selection only includes columns that still exist
-                    valid_selection = [col for col in current_selection if col in current_columns_for_selection]
-                    
-                    # If we have new columns not in the current selection, add them
-                    new_columns = [col for col in current_columns_for_selection if col not in valid_selection]
-                    if new_columns:
-                        valid_selection.extend(new_columns)
-                        # Update session state with the new selection
-                        st.session_state["cols_to_keep_clean"] = valid_selection
+                    # Get current selection - only default to all columns if no previous selection exists
+                    if "cols_to_keep_clean" not in st.session_state:
+                        # First time - default to all columns
+                        default_selection = current_columns_for_selection
+                    else:
+                        # Use existing selection, but filter out columns that no longer exist
+                        existing_selection = st.session_state.get("cols_to_keep_clean", [])
+                        default_selection = [col for col in existing_selection if col in current_columns_for_selection]
                     
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
                         options=current_columns_for_selection,
-                        default=valid_selection,
+                        default=default_selection,
                         key="cols_to_keep_clean"
                     )
                 else:
