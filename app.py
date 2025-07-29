@@ -764,10 +764,25 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
                     
+                    # Handle newly added columns
+                    default_selection = current_columns_for_selection.copy()
+                    
+                    # If there are new columns to add, include them in the default selection
+                    if 'new_columns_to_add' in st.session_state:
+                        # Get current selection if it exists
+                        current_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
+                        # Add new columns to the selection
+                        for new_col in st.session_state['new_columns_to_add']:
+                            if new_col in current_columns_for_selection and new_col not in current_selection:
+                                current_selection.append(new_col)
+                        default_selection = current_selection
+                        # Clear the new columns list
+                        del st.session_state['new_columns_to_add']
+                    
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
                         options=current_columns_for_selection,
-                        default=current_columns_for_selection,  # Always default to all columns
+                        default=default_selection,
                         key="cols_to_keep_clean"
                     )
                 else:
@@ -836,13 +851,12 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                     processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
                                 )
                             
-                            # Add the new column to the selected columns list
-                            current_selection = st.session_state.get("cols_to_keep_clean", [])
-                            if new_col_name.strip() not in current_selection:
-                                current_selection.append(new_col_name.strip())
-                                st.session_state["cols_to_keep_clean"] = current_selection
+                            # Store the new column name to be added after rerun
+                            if 'new_columns_to_add' not in st.session_state:
+                                st.session_state['new_columns_to_add'] = []
+                            st.session_state['new_columns_to_add'].append(new_col_name.strip())
                             
-                            st.success(f"✅ Column '{new_col_name.strip()}' added and selected for cleaning!")
+                            st.success(f"✅ Column '{new_col_name.strip()}' added and will be selected for cleaning!")
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
