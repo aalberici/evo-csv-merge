@@ -466,6 +466,24 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
             
             # Cleaning options
             st.subheader("🔧 Cleaning Options")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                merge_files = st.checkbox("Merge uploaded CSV files", value=len(processor.dataframes) > 1)
+                remove_duplicates = st.checkbox("Remove duplicate rows", value=False)
+                remove_empty_rows = st.checkbox("Remove empty rows", value=True)
+                remove_empty_columns = st.checkbox("Remove empty columns", value=False)
+            
+            with col2:
+                keep_first_header_only = st.checkbox("Keep only first file's header structure", value=True)
+                strip_whitespace = st.checkbox("Strip whitespace from text", value=True)
+                standardize_case = st.checkbox("Standardize text case", value=False)
+                
+                if standardize_case:
+                    case_type = st.selectbox("Case type", ["lower", "upper", "title"])
+                else:
+                    case_type = "lower"
 
             # NEW: Column Management section
             with st.expander("🛠️ Column Management", expanded=False):
@@ -494,24 +512,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 else:
                     st.warning("No columns to display. Please upload files first.")
                     columns_to_keep = [] # Ensure it's an empty list if no columns
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                merge_files = st.checkbox("Merge uploaded CSV files", value=len(processor.dataframes) > 1)
-                remove_duplicates = st.checkbox("Remove duplicate rows", value=False)
-                remove_empty_rows = st.checkbox("Remove empty rows", value=True)
-                remove_empty_columns = st.checkbox("Remove empty columns", value=False)
-            
-            with col2:
-                keep_first_header_only = st.checkbox("Keep only first file's header structure", value=True)
-                strip_whitespace = st.checkbox("Strip whitespace from text", value=True)
-                standardize_case = st.checkbox("Standardize text case", value=False)
-                
-                if standardize_case:
-                    case_type = st.selectbox("Case type", ["lower", "upper", "title"])
-                else:
-                    case_type = "lower"
             
             # Preview original data
             show_original = st.checkbox("Show original data", value=True)
