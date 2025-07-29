@@ -399,19 +399,23 @@ class DataProcessor:
             if self.cleaned_df is not None:
                 # Apply column keeping/removal *before* other operations, as it affects columns
                 columns_to_keep = options.get('columns_to_keep')
-                if columns_to_keep is not None and len(columns_to_keep) > 0:
-                    # Ensure all columns to keep actually exist in the DataFrame
-                    existing_cols = self.cleaned_df.columns.tolist()
-                    cols_to_select = [col for col in columns_to_keep if col in existing_cols]
-                    if cols_to_select:  # Only filter if we have valid columns to keep
-                        self.cleaned_df = self.cleaned_df[cols_to_select]
-                        st.info(f"✅ Kept {len(cols_to_select)} selected columns: {', '.join(cols_to_select)}")
-                    # Warn if some selected columns were not found
-                    removed_missing_cols = set(columns_to_keep) - set(cols_to_select)
-                    if removed_missing_cols:
-                        st.warning(f"Columns not found in the dataset and therefore removed: {', '.join(removed_missing_cols)}")
-                elif columns_to_keep is not None and len(columns_to_keep) == 0:
-                    st.warning("⚠️ No columns selected to keep. All columns will be retained.")
+                if columns_to_keep is not None:
+                    if len(columns_to_keep) > 0:
+                        # Ensure all columns to keep actually exist in the DataFrame
+                        existing_cols = self.cleaned_df.columns.tolist()
+                        cols_to_select = [col for col in columns_to_keep if col in existing_cols]
+                        if cols_to_select:  # Only filter if we have valid columns to keep
+                            original_col_count = len(self.cleaned_df.columns)
+                            self.cleaned_df = self.cleaned_df[cols_to_select]
+                            removed_count = original_col_count - len(cols_to_select)
+                            st.info(f"✅ Kept {len(cols_to_select)} selected columns, removed {removed_count} columns")
+                            st.info(f"Kept columns: {', '.join(cols_to_select)}")
+                        # Warn if some selected columns were not found
+                        removed_missing_cols = set(columns_to_keep) - set(cols_to_select)
+                        if removed_missing_cols:
+                            st.warning(f"Columns not found in the dataset: {', '.join(removed_missing_cols)}")
+                    else:
+                        st.warning("⚠️ No columns selected to keep. All columns will be retained.")
 
                 # Apply other cleaning operations
                 if options.get('remove_duplicates', False):
