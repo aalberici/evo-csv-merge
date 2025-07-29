@@ -297,6 +297,52 @@ class DataProcessor:
             return True
         return False
     
+    def load_pasted_text(self, text_data: str, position: int = 0, name: str = "Pasted Data") -> bool:
+        """Load CSV data from pasted text"""
+        try:
+            if not text_data.strip():
+                st.error("No data provided")
+                return False
+            
+            # Try to parse as CSV
+            from io import StringIO
+            csv_buffer = StringIO(text_data.strip())
+            
+            # Try different separators
+            separators = [',', ';', '\t', '|']
+            df = None
+            
+            for sep in separators:
+                try:
+                    csv_buffer.seek(0)
+                    df = pd.read_csv(csv_buffer, sep=sep)
+                    # Check if we got reasonable columns (more than 1 column or reasonable data)
+                    if len(df.columns) > 1 or (len(df.columns) == 1 and len(df) > 0):
+                        break
+                except:
+                    continue
+            
+            if df is None or df.empty:
+                st.error("Could not parse the pasted data as CSV. Please check the format.")
+                return False
+            
+            # Clean column names
+            df.columns = df.columns.str.strip()
+            
+            # Ensure we have enough space in the dataframes list
+            if position >= len(self.dataframes):
+                self.dataframes.extend([None] * (position - len(self.dataframes) + 1))
+                self.file_names.extend([''] * (position - len(self.file_names) + 1))
+            
+            self.dataframes[position] = df
+            self.file_names[position] = name
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"Error parsing pasted data: {str(e)}")
+            return False
+    
     def get_column_names(self, df_index: int = 0) -> List[str]:
         """Get column names for specified dataframe"""
         if df_index < len(self.dataframes) and self.dataframes[df_index] is not None:
@@ -677,7 +723,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
     
     data_source = st.radio(
         "Choose your data source:",
-        ["Upload Files", "Use Artifacts"],
+        ["Upload Files", "Use Artifacts", "Paste Text"],
         key="cleaning_data_source",
         horizontal=True
     )
@@ -698,7 +744,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 st.success(f"✅ Loaded {len(processor.dataframes)} file(s)")
                 files_loaded = True
     
-    else:  # Use Artifacts
+    elif data_source == "Use Artifacts":
         artifacts = artifact_manager.list_artifacts()
         if artifacts:
             st.info("Select one or more artifacts to load for cleaning. Multiple artifacts will be treated as separate files.")
@@ -729,6 +775,33 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
         else:
             st.info("📦 No artifacts available. Create some first by uploading files and saving them as artifacts!")
             files_loaded = False
+    
+    else:  # Paste Text
+        st.info("📝 Paste your CSV data below. Supports comma, semicolon, tab, or pipe-separated values.")
+        
+        pasted_text = st.text_area(
+            "Paste CSV data here:",
+            height=200,
+            placeholder="name,age,city\nJohn,25,New York\nJane,30,Los Angeles\n...",
+            help="Paste CSV data with headers. The system will auto-detect the separator.",
+            key="cleaning_pasted_text"
+        )
+        
+        files_loaded = False
+        if pasted_text.strip():
+            if st.button("📊 Parse Pasted Data", type="secondary"):
+                # Clear existing dataframes
+                processor.dataframes = []
+                processor.file_names = []
+                
+                if processor.load_pasted_text(pasted_text, 0, "Pasted CSV Data"):
+                    st.success("✅ Successfully parsed pasted data!")
+                    files_loaded = True
+                    st.rerun()
+        
+        # Check if we already have parsed data
+        if len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+            files_loaded = True
     
     if files_loaded:
         # Cleaning options
@@ -1023,7 +1096,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
         st.markdown("**LEFT Dataset**")
         left_source = st.radio(
             "Choose left data source:",
-            ["Upload File", "Use Artifact"],
+            ["Upload File", "Use Artifact", "Paste Text"],
             key="left_source",
             horizontal=True
         )
@@ -1033,7 +1106,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             if left_file:
                 if processor.load_files([left_file]):
                     st.success(f"✅ Loaded: {left_file.name}")
-        else:
+        elif left_source == "Use Artifact":
             artifacts = artifact_manager.list_artifacts()
             if artifacts:
                 left_artifact = st.selectbox("Select left artifact:", [""] + artifacts, key="left_artifact")
@@ -1042,13 +1115,27 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                         st.success(f"✅ Loaded artifact: {left_artifact}")
             else:
                 st.info("No artifacts available. Create some in the Data Cleaning tool first!")
+        else:  # Paste Text
+            st.info("📝 Paste your LEFT dataset CSV data below")
+            left_pasted_text = st.text_area(
+                "Paste LEFT CSV data:",
+                height=150,
+                placeholder="id,name,value\n1,Item A,100\n2,Item B,200\n...",
+                key="left_pasted_text"
+            )
+            
+            if left_pasted_text.strip():
+                if st.button("📊 Parse LEFT Data", type="secondary", key="parse_left"):
+                    if processor.load_pasted_text(left_pasted_text, 0, "Left Pasted Data"):
+                        st.success("✅ Successfully parsed LEFT data!")
+                        st.rerun()
     
     # RIGHT data source
     with col2:
         st.markdown("**RIGHT Dataset**")
         right_source = st.radio(
             "Choose right data source:",
-            ["Upload File", "Use Artifact"],
+            ["Upload File", "Use Artifact", "Paste Text"],
             key="right_source",
             horizontal=True
         )
@@ -1071,7 +1158,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                 processor.dataframes[1] = df
                 processor.file_names[1] = right_file.name
                 st.success(f"✅ Loaded: {right_file.name}")
-        else:
+        elif right_source == "Use Artifact":
             artifacts = artifact_manager.list_artifacts()
             if artifacts:
                 right_artifact = st.selectbox("Select right artifact:", [""] + artifacts, key="right_artifact")
@@ -1080,6 +1167,20 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                         st.success(f"✅ Loaded artifact: {right_artifact}")
             else:
                 st.info("No artifacts available. Create some in the Data Cleaning tool first!")
+        else:  # Paste Text
+            st.info("📝 Paste your RIGHT dataset CSV data below")
+            right_pasted_text = st.text_area(
+                "Paste RIGHT CSV data:",
+                height=150,
+                placeholder="id,description,category\n1,Product A,Electronics\n2,Product B,Books\n...",
+                key="right_pasted_text"
+            )
+            
+            if right_pasted_text.strip():
+                if st.button("📊 Parse RIGHT Data", type="secondary", key="parse_right"):
+                    if processor.load_pasted_text(right_pasted_text, 1, "Right Pasted Data"):
+                        st.success("✅ Successfully parsed RIGHT data!")
+                        st.rerun()
     
     # Check if we have both datasets
     if (len(processor.dataframes) >= 2 and 
