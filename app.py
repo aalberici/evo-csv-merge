@@ -2053,7 +2053,7 @@ def main():
     # Logo and title
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.image("/Users/aalberici/Repos/evo-csv-merge/evo-logo.png", width=120)
+        st.image("evo-logo.png", width=120)
     with col2:
         st.title("CSV Data Processing Suite")
         st.caption("Complete toolkit for CSV data cleaning, merging, and analysis")
