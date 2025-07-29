@@ -10,12 +10,39 @@ import json
 import os
 import uuid
 
+def lucide_icon(name: str, size: int = 16, color: str = "currentColor") -> str:
+    """Generate Lucide icon HTML"""
+    return f'<i data-lucide="{name}" style="width: {size}px; height: {size}px; color: {color};"></i>'
+
+def init_lucide_icons():
+    """Initialize Lucide icons after page load"""
+    st.markdown("""
+    <script>
+    // Initialize Lucide icons when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+    
+    // Also try to initialize icons after a short delay (for dynamic content)
+    setTimeout(function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }, 500);
+    </script>
+    """, unsafe_allow_html=True)
+
 # Page configuration
 st.set_page_config(
     page_title="CSV Data Processing Suite",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Initialize Lucide icons
+init_lucide_icons()
 
 def check_authentication():
     """Check if user is authenticated"""
@@ -1254,19 +1281,34 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
                 
                 with col1:
-                    if st.button("👁️", key=f"view_{artifact_name}", 
-                               help="Preview data", use_container_width=True):
+                    st.markdown(f"""
+                    <button class="icon-button" onclick="document.querySelector('[data-testid=\\"baseButton-secondary\\"][key=\\"view_{artifact_name}\\"]').click()">
+                        {lucide_icon("eye", 16)} View
+                    </button>
+                    """, unsafe_allow_html=True)
+                    if st.button("", key=f"view_{artifact_name}", 
+                               help="Preview data", label_visibility="hidden"):
                         st.session_state[f"show_popup_{artifact_name}"] = True
                 
                 with col2:
-                    if st.button("✏️", key=f"rename_{artifact_name}", 
-                               help="Rename artifact", use_container_width=True):
+                    st.markdown(f"""
+                    <button class="icon-button" onclick="document.querySelector('[data-testid=\\"baseButton-secondary\\"][key=\\"rename_{artifact_name}\\"]').click()">
+                        {lucide_icon("edit", 16)} Rename
+                    </button>
+                    """, unsafe_allow_html=True)
+                    if st.button("", key=f"rename_{artifact_name}", 
+                               help="Rename artifact", label_visibility="hidden"):
                         st.session_state[f"rename_mode_{artifact_name}"] = True
                         st.rerun()
                 
                 with col3:
-                    if st.button("📋", key=f"copy_{artifact_name}", 
-                               help="Duplicate artifact", use_container_width=True):
+                    st.markdown(f"""
+                    <button class="icon-button" onclick="document.querySelector('[data-testid=\\"baseButton-secondary\\"][key=\\"copy_{artifact_name}\\"]').click()">
+                        {lucide_icon("copy", 16)} Copy
+                    </button>
+                    """, unsafe_allow_html=True)
+                    if st.button("", key=f"copy_{artifact_name}", 
+                               help="Duplicate artifact", label_visibility="hidden"):
                         # Create a copy with timestamp
                         new_name = f"{artifact_name}_copy_{datetime.now().strftime('%H%M%S')}"
                         new_artifact = DataArtifact(
@@ -1279,8 +1321,14 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                             st.rerun()
                 
                 with col4:
-                    if st.button("🗑️", key=f"delete_{artifact_name}", 
-                               help="Delete artifact", use_container_width=True):
+                    delete_class = "icon-button danger" if st.session_state.get(f'confirm_delete_{artifact_name}', False) else "icon-button"
+                    st.markdown(f"""
+                    <button class="{delete_class}" onclick="document.querySelector('[data-testid=\\"baseButton-secondary\\"][key=\\"delete_{artifact_name}\\"]').click()">
+                        {lucide_icon("trash-2", 16)} Delete
+                    </button>
+                    """, unsafe_allow_html=True)
+                    if st.button("", key=f"delete_{artifact_name}", 
+                               help="Delete artifact", label_visibility="hidden"):
                         if st.session_state.get(f'confirm_delete_{artifact_name}', False):
                             if artifact_manager.delete_artifact(artifact_name):
                                 st.success(f"✅ Deleted")
@@ -1299,7 +1347,12 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button("✅ Save", key="save_rename", type="primary", use_container_width=True):
+                            st.markdown(f"""
+                            <button class="icon-button primary" onclick="document.querySelector('[data-testid=\\"baseButton-primary\\"][key=\\"save_rename\\"]').click()" style="width: 100%;">
+                                {lucide_icon("check", 16)} Save
+                            </button>
+                            """, unsafe_allow_html=True)
+                            if st.button("", key="save_rename", type="primary", label_visibility="hidden"):
                                 if new_name.strip() and new_name.strip() != artifact_name:
                                     if new_name.strip() not in artifact_manager.list_artifacts():
                                         # Create new artifact with new name
@@ -1321,7 +1374,12 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                                     st.error("❌ Enter a valid new name")
                         
                         with col2:
-                            if st.button("❌ Cancel", key="cancel_rename", use_container_width=True):
+                            st.markdown(f"""
+                            <button class="icon-button" onclick="document.querySelector('[data-testid=\\"baseButton-secondary\\"][key=\\"cancel_rename\\"]').click()" style="width: 100%;">
+                                {lucide_icon("x", 16)} Cancel
+                            </button>
+                            """, unsafe_allow_html=True)
+                            if st.button("", key="cancel_rename", label_visibility="hidden"):
                                 st.session_state[f"rename_mode_{artifact_name}"] = False
                                 st.rerun()
                     
@@ -1347,7 +1405,12 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         st.markdown("**Data Preview:**")
                         st.dataframe(artifact.dataframe.head(20), use_container_width=True)
                         
-                        if st.button("✅ Close", key="close_preview", type="primary", use_container_width=True):
+                        st.markdown(f"""
+                        <button class="icon-button primary" onclick="document.querySelector('[data-testid=\\"baseButton-primary\\"][key=\\"close_preview\\"]').click()" style="width: 100%;">
+                            {lucide_icon("x", 16)} Close
+                        </button>
+                        """, unsafe_allow_html=True)
+                        if st.button("", key="close_preview", type="primary", label_visibility="hidden"):
                             st.session_state[f"show_popup_{artifact_name}"] = False
                             st.rerun()
                     
@@ -1811,8 +1874,13 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 
                 with col1:
                     csv_data = convert_df_to_csv(processor.cleaned_df)
+                    st.markdown(f"""
+                    <div style="margin-bottom: 0.5rem;">
+                        {lucide_icon("file-text", 16)} CSV Format
+                    </div>
+                    """, unsafe_allow_html=True)
                     st.download_button(
-                        "📄 Download CSV",
+                        "Download CSV",
                         data=csv_data,
                         file_name="cleaned_data.csv",
                         mime="text/csv",
@@ -1821,8 +1889,13 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 
                 with col2:
                     excel_data = convert_df_to_excel(processor.cleaned_df)
+                    st.markdown(f"""
+                    <div style="margin-bottom: 0.5rem;">
+                        {lucide_icon("file-spreadsheet", 16)} Excel Format
+                    </div>
+                    """, unsafe_allow_html=True)
                     st.download_button(
-                        "📊 Download Excel",
+                        "Download Excel",
                         data=excel_data,
                         file_name="cleaned_data.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1831,8 +1904,13 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 
                 with col3:
                     json_data = processor.cleaned_df.to_json(orient='records', indent=2)
+                    st.markdown(f"""
+                    <div style="margin-bottom: 0.5rem;">
+                        {lucide_icon("braces", 16)} JSON Format
+                    </div>
+                    """, unsafe_allow_html=True)
                     st.download_button(
-                        "🔗 Download JSON",
+                        "Download JSON",
                         data=json_data,
                         file_name="cleaned_data.json",
                         mime="application/json",
@@ -2056,8 +2134,13 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             
             with col1:
                 csv_data = convert_df_to_csv(processor.merged_df)
+                st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;">
+                    {lucide_icon("file-text", 16)} CSV Format
+                </div>
+                """, unsafe_allow_html=True)
                 st.download_button(
-                    "📄 Download CSV",
+                    "Download CSV",
                     data=csv_data,
                     file_name="merged_data.csv",
                     mime="text/csv",
@@ -2066,8 +2149,13 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             
             with col2:
                 excel_data = convert_df_to_excel(processor.merged_df)
+                st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;">
+                    {lucide_icon("file-spreadsheet", 16)} Excel Format
+                </div>
+                """, unsafe_allow_html=True)
                 st.download_button(
-                    "📊 Download Excel",
+                    "Download Excel",
                     data=excel_data,
                     file_name="merged_data.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2076,8 +2164,13 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             
             with col3:
                 json_data = processor.merged_df.to_json(orient='records', indent=2)
+                st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;">
+                    {lucide_icon("braces", 16)} JSON Format
+                </div>
+                """, unsafe_allow_html=True)
                 st.download_button(
-                    "🔗 Download JSON",
+                    "Download JSON",
                     data=json_data,
                     file_name="merged_data.json",
                     mime="application/json",
