@@ -1303,7 +1303,19 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
                 
                 with col1:
-                    if st.button("👁 View", key=f"view_{artifact_name}", 
+                    # Display eye icon above button
+                    eye_icon = eye_icon_html(16)
+                    if eye_icon and eye_icon.startswith('<img'):
+                        st.markdown(f"""
+                        <div style="text-align: center; margin-bottom: 0.25rem;">
+                            {eye_icon}
+                        </div>
+                        """, unsafe_allow_html=True)
+                        button_text = "View"
+                    else:
+                        button_text = "👁 View"
+                    
+                    if st.button(button_text, key=f"view_{artifact_name}", 
                                help="Preview data", use_container_width=True):
                         st.session_state[f"show_popup_{artifact_name}"] = True
                 
