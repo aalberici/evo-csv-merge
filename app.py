@@ -512,6 +512,73 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 else:
                     st.warning("No columns to display. Please upload files first.")
                     columns_to_keep = [] # Ensure it's an empty list if no columns
+
+            # NEW: Add New Columns section (before cleaning)
+            with st.expander("➕ Add New Columns", expanded=False):
+                st.info("Add new columns to your data before cleaning. These will be applied to the source data.")
+                
+                # Get the working dataframe for adding columns
+                working_df = None
+                if merge_files and len(processor.dataframes) > 1:
+                    # If merging, work with a temporary merged version
+                    valid_dfs = [df for df in processor.dataframes if df is not None]
+                    if len(valid_dfs) >= 2:
+                        if keep_first_header_only:
+                            for i in range(1, len(valid_dfs)):
+                                common_cols = valid_dfs[0].columns.intersection(valid_dfs[i].columns)
+                                valid_dfs[i] = valid_dfs[i][common_cols]
+                        working_df = pd.concat(valid_dfs, ignore_index=True, join='outer')
+                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                    working_df = processor.dataframes[0].copy()
+                
+                if working_df is not None:
+                    new_col_name = st.text_input("New Column Name:", key="new_col_name_pre_clean")
+                    col_type = st.selectbox(
+                        "Select Column Value Type:",
+                        ["Autonumber", "Fixed Value", "Random Integer", "Random Float", "Increment Existing"],
+                        key="new_col_type_pre_clean"
+                    )
+
+                    col_kwargs = {}
+
+                    if col_type == "Autonumber":
+                        col_kwargs['autonum_start'] = st.number_input("Start Number:", min_value=1, value=1, step=1, key="autonum_start_pre_clean")
+                    elif col_type == "Fixed Value":
+                        col_kwargs['fixed_value'] = st.text_input("Fixed Value:", key="fixed_value_pre_clean")
+                    elif col_type == "Random Integer":
+                        col_kwargs['random_int_min'] = st.number_input("Minimum Value:", min_value=0, value=0, step=1, key="rand_int_min_pre_clean")
+                        col_kwargs['random_int_max'] = st.number_input("Maximum Value:", min_value=0, value=100, step=1, key="rand_int_max_pre_clean")
+                    elif col_type == "Random Float":
+                        col_kwargs['random_float_min'] = st.number_input("Minimum Value:", value=0.0, key="rand_float_min_pre_clean")
+                        col_kwargs['random_float_max'] = st.number_input("Maximum Value:", value=1.0, key="rand_float_max_pre_clean")
+                    elif col_type == "Increment Existing":
+                        numeric_cols = working_df.select_dtypes(include=np.number).columns.tolist()
+                        if numeric_cols:
+                            col_kwargs['source_column'] = st.selectbox("Select Numeric Source Column:", [""] + numeric_cols, key="source_col_increment_pre_clean")
+                            col_kwargs['increment_by'] = st.number_input("Increment By:", value=1, step=1, key="increment_by_pre_clean")
+                        else:
+                            st.warning("No numeric columns available for increment operation.")
+
+                    if st.button("➕ Add Column to Source Data", type="secondary", use_container_width=True, key="add_new_column_pre_clean"):
+                        if new_col_name.strip():
+                            # Add column to all relevant dataframes
+                            if merge_files and len(processor.dataframes) > 1:
+                                for i, df in enumerate(processor.dataframes):
+                                    if df is not None:
+                                        processor.dataframes[i] = processor.add_new_column(
+                                            df, new_col_name.strip(), col_type, **col_kwargs
+                                        )
+                            elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                                processor.dataframes[0] = processor.add_new_column(
+                                    processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
+                                )
+                            
+                            st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
+                            st.rerun()
+                        else:
+                            st.error("Please enter a name for the new column.")
+                else:
+                    st.warning("No data available. Please upload files first.")
             
             # Preview original data
             show_original = st.checkbox("Show original data", value=True)
@@ -614,53 +681,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         use_container_width=True
                     )
 
-            # Add New Columns section
-            with st.expander("➕ Add New Columns", expanded=False):
-                st.subheader("Configure New Column")
-                new_col_name = st.text_input("New Column Name:", key="new_col_name_input")
-                col_type = st.selectbox(
-                    "Select Column Value Type:",
-                    ["Autonumber", "Fixed Value", "Random Integer", "Random Float", "Increment Existing"],
-                    key="new_col_type_select"
-                )
-
-                col_kwargs = {}
-
-                if col_type == "Autonumber":
-                    col_kwargs['autonum_start'] = st.number_input("Start Number:", min_value=1, value=1, step=1, key="autonum_start_input")
-                elif col_type == "Fixed Value":
-                    col_kwargs['fixed_value'] = st.text_input("Fixed Value:", key="fixed_value_input")
-                elif col_type == "Random Integer":
-                    col_kwargs['random_int_min'] = st.number_input("Minimum Value:", min_value=0, value=0, step=1, key="rand_int_min_input")
-                    col_kwargs['random_int_max'] = st.number_input("Maximum Value:", min_value=0, value=100, step=1, key="rand_int_max_input")
-                elif col_type == "Random Float":
-                    col_kwargs['random_float_min'] = st.number_input("Minimum Value:", value=0.0, key="rand_float_min_input")
-                    col_kwargs['random_float_max'] = st.number_input("Maximum Value:", value=1.0, key="rand_float_max_input")
-                elif col_type == "Increment Existing":
-                    numeric_cols = processor.cleaned_df.select_dtypes(include=np.number).columns.tolist()
-                    col_kwargs['source_column'] = st.selectbox("Select Numeric Source Column:", [""] + numeric_cols, key="source_col_increment")
-                    col_kwargs['increment_by'] = st.number_input("Increment By:", value=1, step=1, key="increment_by_input")
-
-                if st.button("➕ Add Column", type="secondary", use_container_width=True, key="add_new_column_btn"):
-                    if new_col_name.strip():
-                        if processor.cleaned_df is not None:
-                            old_cols_count = len(processor.cleaned_df.columns)
-                            processor.cleaned_df = processor.add_new_column(
-                                processor.cleaned_df,
-                                new_col_name.strip(),
-                                col_type,
-                                **col_kwargs
-                            )
-                            # Check if the column was actually added/updated
-                            if len(processor.cleaned_df.columns) > old_cols_count or (new_col_name.strip() in processor.cleaned_df.columns and old_cols_count == len(processor.cleaned_df.columns)):
-                                st.success(f"✅ Column '{new_col_name.strip()}' added successfully!")
-                                st.rerun() # Rerun to update the dataframe view and options
-                            else:
-                                st.error("Failed to add column. Check inputs and console for errors.")
-                        else:
-                            st.error("No cleaned data to add columns to. Please clean data first.")
-                    else:
-                        st.error("Please enter a name for the new column.")
 
 def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the CSV merger interface"""
