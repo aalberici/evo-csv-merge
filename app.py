@@ -533,20 +533,66 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
     """Render the data cleaning interface"""
     st.header("🧹 Data Cleaning Tool")
     
-    # File upload
-    uploaded_files = st.file_uploader(
-        "Choose CSV files",
-        type="csv",
-        accept_multiple_files=True,
-        help="Upload one or multiple CSV files for cleaning",
-        key="cleaning_uploader"
+    # Data source selection
+    st.subheader("📂 Select Data Source")
+    
+    data_source = st.radio(
+        "Choose your data source:",
+        ["Upload Files", "Use Artifacts"],
+        key="cleaning_data_source",
+        horizontal=True
     )
     
-    if uploaded_files:
-        if processor.load_files(uploaded_files):
-            st.success(f"✅ Loaded {len(processor.dataframes)} file(s)")
+    if data_source == "Upload Files":
+        # File upload
+        uploaded_files = st.file_uploader(
+            "Choose CSV files",
+            type="csv",
+            accept_multiple_files=True,
+            help="Upload one or multiple CSV files for cleaning",
+            key="cleaning_uploader"
+        )
+        
+        files_loaded = False
+        if uploaded_files:
+            if processor.load_files(uploaded_files):
+                st.success(f"✅ Loaded {len(processor.dataframes)} file(s)")
+                files_loaded = True
+    
+    else:  # Use Artifacts
+        artifacts = artifact_manager.list_artifacts()
+        if artifacts:
+            st.info("Select one or more artifacts to load for cleaning. Multiple artifacts will be treated as separate files.")
             
-            # Cleaning options
+            selected_artifacts = st.multiselect(
+                "Select artifacts to load:",
+                options=artifacts,
+                help="Choose artifacts to load for cleaning",
+                key="cleaning_artifacts_select"
+            )
+            
+            files_loaded = False
+            if selected_artifacts:
+                # Clear existing dataframes
+                processor.dataframes = []
+                processor.file_names = []
+                
+                # Load selected artifacts
+                for artifact_name in selected_artifacts:
+                    artifact = artifact_manager.get_artifact(artifact_name)
+                    if artifact:
+                        processor.dataframes.append(artifact.dataframe.copy())
+                        processor.file_names.append(f"Artifact: {artifact_name}")
+                
+                if processor.dataframes:
+                    st.success(f"✅ Loaded {len(processor.dataframes)} artifact(s)")
+                    files_loaded = True
+        else:
+            st.info("📦 No artifacts available. Create some first by uploading files and saving them as artifacts!")
+            files_loaded = False
+    
+    if files_loaded:
+        # Cleaning options
             st.subheader("🔧 Cleaning Options")
             
             col1, col2 = st.columns(2)
