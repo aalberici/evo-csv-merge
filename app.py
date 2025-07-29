@@ -228,6 +228,42 @@ class DataProcessor:
             return list(self.dataframes[df_index].columns)
         return []
     
+    def add_new_column(self, df: pd.DataFrame, col_name: str, col_type: str, **kwargs) -> pd.DataFrame:
+        """Add a new column to the DataFrame based on specified rules."""
+        if col_name in df.columns:
+            st.warning(f"Column '{col_name}' already exists. Overwriting.")
+
+        if col_type == "Autonumber":
+            start = kwargs.get('autonum_start', 1)
+            df[col_name] = range(start, start + len(df))
+        elif col_type == "Fixed Value":
+            fixed_value = kwargs.get('fixed_value', '')
+            df[col_name] = fixed_value
+        elif col_type == "Random Integer":
+            min_val = kwargs.get('random_int_min', 0)
+            max_val = kwargs.get('random_int_max', 100)
+            df[col_name] = np.random.randint(min_val, max_val + 1, size=len(df))
+        elif col_type == "Random Float":
+            min_val = kwargs.get('random_float_min', 0.0)
+            max_val = kwargs.get('random_float_max', 1.0)
+            df[col_name] = np.random.uniform(min_val, max_val, size=len(df))
+        elif col_type == "Increment Existing":
+            source_col = kwargs.get('source_column')
+            increment_by = kwargs.get('increment_by', 1)
+            if source_col and source_col in df.columns:
+                if pd.api.types.is_numeric_dtype(df[source_col]):
+                    df[col_name] = df[source_col] + increment_by
+                else:
+                    st.error(f"Source column '{source_col}' is not numeric for 'Increment Existing'.")
+                    return df
+            else:
+                st.error(f"Source column '{source_col}' not found for 'Increment Existing'.")
+                return df
+        else:
+            st.error("Invalid column type specified.")
+            return df
+        return df
+    
     def auto_detect_keys(self, left_idx: int = 0, right_idx: int = 1) -> Tuple[Optional[str], Optional[str]]:
         """Automatically detect matching key columns between two dataframes"""
         if (len(self.dataframes) < 2 or left_idx >= len(self.dataframes) or 
@@ -318,7 +354,19 @@ class DataProcessor:
                 self.cleaned_df = valid_df.copy() if valid_df is not None else None
             
             if self.cleaned_df is not None:
-                # Apply cleaning operations
+                # Apply column keeping/removal *before* other operations, as it affects columns
+                columns_to_keep = options.get('columns_to_keep')
+                if columns_to_keep is not None:
+                    # Ensure all columns to keep actually exist in the DataFrame
+                    existing_cols = self.cleaned_df.columns.tolist()
+                    cols_to_select = [col for col in columns_to_keep if col in existing_cols]
+                    self.cleaned_df = self.cleaned_df[cols_to_select]
+                    # Warn if some selected columns were not found
+                    removed_missing_cols = set(columns_to_keep) - set(cols_to_select)
+                    if removed_missing_cols:
+                        st.warning(f"Columns not found in the dataset and therefore removed: {', '.join(removed_missing_cols)}")
+
+                # Apply other cleaning operations
                 if options.get('remove_duplicates', False):
                     self.cleaned_df.drop_duplicates(inplace=True)
                 
@@ -418,6 +466,34 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
             
             # Cleaning options
             st.subheader("🔧 Cleaning Options")
+
+            # NEW: Column Management section
+            with st.expander("🛠️ Column Management", expanded=False):
+                current_columns_for_selection = []
+                # Determine columns available for selection based on merge preference
+                if merge_files and len(processor.dataframes) > 1:
+                    # Calculate the union of columns across all dataframes if merging is active
+                    all_cols_set = set()
+                    for df in processor.dataframes:
+                        if df is not None:
+                            all_cols_set.update(df.columns)
+                    current_columns_for_selection = sorted(list(all_cols_set))
+                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                    # Use columns from the first dataframe if no merge
+                    current_columns_for_selection = list(processor.dataframes[0].columns)
+
+                columns_to_keep = []
+                if current_columns_for_selection:
+                    st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
+                    columns_to_keep = st.multiselect(
+                        "Select columns to keep:",
+                        options=current_columns_for_selection,
+                        default=current_columns_for_selection, # All selected by default
+                        key="cols_to_keep_clean"
+                    )
+                else:
+                    st.warning("No columns to display. Please upload files first.")
+                    columns_to_keep = [] # Ensure it's an empty list if no columns
             
             col1, col2 = st.columns(2)
             
@@ -455,7 +531,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     'remove_empty_columns': remove_empty_columns,
                     'strip_whitespace': strip_whitespace,
                     'standardize_case': standardize_case,
-                    'case_type': case_type
+                    'case_type': case_type,
+                    'columns_to_keep': columns_to_keep # Pass selected columns to keep
                 }
                 
                 if processor.clean_data(cleaning_options):
@@ -536,6 +613,54 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         mime="application/json",
                         use_container_width=True
                     )
+
+            # Add New Columns section
+            with st.expander("➕ Add New Columns", expanded=False):
+                st.subheader("Configure New Column")
+                new_col_name = st.text_input("New Column Name:", key="new_col_name_input")
+                col_type = st.selectbox(
+                    "Select Column Value Type:",
+                    ["Autonumber", "Fixed Value", "Random Integer", "Random Float", "Increment Existing"],
+                    key="new_col_type_select"
+                )
+
+                col_kwargs = {}
+
+                if col_type == "Autonumber":
+                    col_kwargs['autonum_start'] = st.number_input("Start Number:", min_value=1, value=1, step=1, key="autonum_start_input")
+                elif col_type == "Fixed Value":
+                    col_kwargs['fixed_value'] = st.text_input("Fixed Value:", key="fixed_value_input")
+                elif col_type == "Random Integer":
+                    col_kwargs['random_int_min'] = st.number_input("Minimum Value:", min_value=0, value=0, step=1, key="rand_int_min_input")
+                    col_kwargs['random_int_max'] = st.number_input("Maximum Value:", min_value=0, value=100, step=1, key="rand_int_max_input")
+                elif col_type == "Random Float":
+                    col_kwargs['random_float_min'] = st.number_input("Minimum Value:", value=0.0, key="rand_float_min_input")
+                    col_kwargs['random_float_max'] = st.number_input("Maximum Value:", value=1.0, key="rand_float_max_input")
+                elif col_type == "Increment Existing":
+                    numeric_cols = processor.cleaned_df.select_dtypes(include=np.number).columns.tolist()
+                    col_kwargs['source_column'] = st.selectbox("Select Numeric Source Column:", [""] + numeric_cols, key="source_col_increment")
+                    col_kwargs['increment_by'] = st.number_input("Increment By:", value=1, step=1, key="increment_by_input")
+
+                if st.button("➕ Add Column", type="secondary", use_container_width=True, key="add_new_column_btn"):
+                    if new_col_name.strip():
+                        if processor.cleaned_df is not None:
+                            old_cols_count = len(processor.cleaned_df.columns)
+                            processor.cleaned_df = processor.add_new_column(
+                                processor.cleaned_df,
+                                new_col_name.strip(),
+                                col_type,
+                                **col_kwargs
+                            )
+                            # Check if the column was actually added/updated
+                            if len(processor.cleaned_df.columns) > old_cols_count or (new_col_name.strip() in processor.cleaned_df.columns and old_cols_count == len(processor.cleaned_df.columns)):
+                                st.success(f"✅ Column '{new_col_name.strip()}' added successfully!")
+                                st.rerun() # Rerun to update the dataframe view and options
+                            else:
+                                st.error("Failed to add column. Check inputs and console for errors.")
+                        else:
+                            st.error("No cleaned data to add columns to. Please clean data first.")
+                    else:
+                        st.error("Please enter a name for the new column.")
 
 def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the CSV merger interface"""
