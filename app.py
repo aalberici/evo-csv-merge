@@ -767,9 +767,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                 )
                             
                             st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
-                            # Clear any cached column selections to force refresh
-                            if "cols_to_keep_clean" in st.session_state:
-                                del st.session_state["cols_to_keep_clean"]
+                            # Set flag to force column selection refresh
+                            st.session_state["force_column_refresh"] = True
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
@@ -795,6 +794,12 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 columns_to_keep = []
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
+                    
+                    # Force refresh of column selection when new columns are added
+                    if "force_column_refresh" in st.session_state:
+                        if "cols_to_keep_clean" in st.session_state:
+                            del st.session_state["cols_to_keep_clean"]
+                        del st.session_state["force_column_refresh"]
                     
                     # Get current selection or default to all columns
                     current_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
