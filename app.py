@@ -13,7 +13,6 @@ import uuid
 # Page configuration
 st.set_page_config(
     page_title="CSV Data Processing Suite",
-    page_icon="🔧",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -26,7 +25,7 @@ def check_authentication():
     if not st.session_state.authenticated:
         st.markdown("""
         <div class="main-header">
-            <h1>🔐 Login Required</h1>
+            <h1>Login Required</h1>
             <p>Please enter your credentials to access the CSV Processing Suite</p>
         </div>
         """, unsafe_allow_html=True)
@@ -38,7 +37,7 @@ def check_authentication():
                 username = st.text_input("Username", placeholder="Enter username")
                 password = st.text_input("Password", type="password", placeholder="Enter password")
                 
-                submitted = st.form_submit_button("🔓 Login", use_container_width=True, type="primary")
+                submitted = st.form_submit_button("Login", use_container_width=True, type="primary")
                 
                 if submitted:
                     # Get password from secrets
@@ -56,7 +55,7 @@ def check_authentication():
         
         st.markdown("""
         <div style="text-align: center; margin-top: 2rem; color: #666;">
-            <p>🔒 This application requires authentication to access</p>
+            <p>This application requires authentication to access</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1135,7 +1134,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                     background: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E'); 
                     opacity: 0.3;"></div>
         <h4 style="color: white; margin: 0; font-size: 1.25rem; font-weight: 600; position: relative; z-index: 1;">
-            💾 Data Artifacts
+            Data Artifacts
         </h4>
         <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 0.875rem; position: relative; z-index: 1;">
             Persistent datasets ready for processing
@@ -1145,8 +1144,8 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
     
     if artifacts:
         # Bulk actions
-        with st.expander("⚙️ Bulk Actions", expanded=False):
-            if st.button("🗑️ Clear All", type="secondary", use_container_width=True):
+        with st.expander("Bulk Actions", expanded=False):
+            if st.button("Clear All", type="secondary", use_container_width=True):
                 if st.session_state.get('confirm_clear_all', False):
                     if artifact_manager.clear_all_artifacts():
                         st.success("✅ All cleared!")
@@ -1306,7 +1305,6 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
         <div style="text-align: center; padding: 3rem 2rem; color: var(--neutral-500); 
                    background: white; border-radius: var(--radius-xl); 
                    border: 2px dashed var(--neutral-300); box-shadow: var(--shadow-sm);">
-            <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.6;">📦</div>
             <h4 style="color: var(--neutral-600); font-weight: 600; margin-bottom: 0.5rem;">
                 No Artifacts Yet
             </h4>
@@ -1331,10 +1329,10 @@ def convert_df_to_excel(df):
 
 def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the data cleaning interface"""
-    st.header("🧹 Data Cleaning Tool")
+    st.header("Data Cleaning Tool")
     
     # Data source selection
-    st.subheader("📂 Select Data Source")
+    st.subheader("Select Data Source")
     
     data_source = st.radio(
         "Choose your data source:",
@@ -1388,11 +1386,11 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     st.success(f"✅ Loaded {len(processor.dataframes)} artifact(s)")
                     files_loaded = True
         else:
-            st.info("📦 No artifacts available. Create some first by uploading files and saving them as artifacts!")
+            st.info("No artifacts available. Create some first by uploading files and saving them as artifacts!")
             files_loaded = False
     
     else:  # Paste Text
-        st.info("📝 Paste your data below. Supports CSV (comma, semicolon, tab, pipe-separated) and Markdown table formats.")
+        st.info("Paste your data below. Supports CSV (comma, semicolon, tab, pipe-separated) and Markdown table formats.")
         
         pasted_text = st.text_area(
             "Paste CSV data here:",
@@ -1404,7 +1402,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
         
         files_loaded = False
         if pasted_text.strip():
-            if st.button("📊 Parse Pasted Data", type="secondary"):
+            if st.button("Parse Pasted Data", type="secondary"):
                 # Clear existing dataframes
                 processor.dataframes = []
                 processor.file_names = []
@@ -1420,7 +1418,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
     
     if files_loaded:
         # Cleaning options
-            st.subheader("🔧 Cleaning Options")
+            st.subheader("Cleaning Options")
             
             col1, col2 = st.columns(2)
             
@@ -1454,7 +1452,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 current_columns_for_selection = list(processor.dataframes[0].columns)
 
             # NEW: Column Renaming section (before column management)
-            with st.expander("✏️ Column Renaming", expanded=False):
+            with st.expander("Column Renaming", expanded=False):
                 st.info("Rename columns to improve data quality and consistency.")
                 
                 enable_column_renaming = st.checkbox("Enable column renaming", key="enable_column_renaming")
@@ -1523,7 +1521,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         st.warning("No columns available for renaming")
 
             # NEW: Column Management section (first step - select columns to keep)
-            with st.expander("🛠️ Column Management", expanded=False):
+            with st.expander("Column Management", expanded=False):
 
                 columns_to_keep = []
                 if current_columns_for_selection:
@@ -1561,7 +1559,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     columns_to_keep = [] # Ensure it's an empty list if no columns
 
             # NEW: Add New Columns section (after column selection, before cleaning)
-            with st.expander("➕ Add New Columns", expanded=False):
+            with st.expander("Add New Columns", expanded=False):
                 st.info("Add new columns to your data. These will be included in the final cleaned dataset.")
                 
                 # Get the working dataframe for adding columns
@@ -1609,7 +1607,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         else:
                             st.warning("No numeric columns available for increment operation.")
 
-                    if st.button("➕ Add Column", type="secondary", use_container_width=True, key="add_new_column_pre_clean"):
+                    if st.button("Add Column", type="secondary", use_container_width=True, key="add_new_column_pre_clean"):
                         if new_col_name.strip():
                             # Add column to all relevant dataframes
                             if merge_files and len(processor.dataframes) > 1:
@@ -1642,7 +1640,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
 
             # NEW: Column Selection Preview Panel
             if current_columns_for_selection:
-                with st.expander("👁️ Current Column Selection Preview", expanded=True):
+                with st.expander("Current Column Selection Preview", expanded=True):
                     selected_cols = st.session_state.get("cols_to_keep_clean", [])
                     
                     if selected_cols:
@@ -1678,7 +1676,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                             st.dataframe(df.head(10), use_container_width=True)
             
             # Process data
-            if st.button("🚀 Clean Data", type="primary", use_container_width=True):
+            if st.button("Clean Data", type="primary", use_container_width=True):
                 # Collect manual renames from session state
                 manual_renames = {}
                 if current_columns_for_selection:
@@ -1711,7 +1709,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
             
             # Show cleaned results
             if processor.cleaned_df is not None:
-                st.subheader("📊 Cleaned Data Results")
+                st.subheader("Cleaned Data Results")
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -1726,7 +1724,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 st.dataframe(processor.cleaned_df.head(20), use_container_width=True)
                 
                 # Save as artifact
-                st.subheader("💾 Save & Download")
+                st.subheader("Save & Download")
                 
                 col1, col2 = st.columns([2, 1])
                 
@@ -1738,7 +1736,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     )
                 
                 with col2:
-                    if st.button("💾 Save as Artifact", type="primary", use_container_width=True):
+                    if st.button("Save as Artifact", type="primary", use_container_width=True):
                         if artifact_name.strip():
                             # Use the cleaned dataframe which already has column selection applied
                             artifact = DataArtifact(
@@ -1758,7 +1756,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col1:
                     csv_data = convert_df_to_csv(processor.cleaned_df)
                     st.download_button(
-                        "📥 Download CSV",
+                        "Download CSV",
                         data=csv_data,
                         file_name="cleaned_data.csv",
                         mime="text/csv",
@@ -1768,7 +1766,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col2:
                     excel_data = convert_df_to_excel(processor.cleaned_df)
                     st.download_button(
-                        "📊 Download Excel",
+                        "Download Excel",
                         data=excel_data,
                         file_name="cleaned_data.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1778,7 +1776,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col3:
                     json_data = processor.cleaned_df.to_json(orient='records', indent=2)
                     st.download_button(
-                        "🔄 Download JSON",
+                        "Download JSON",
                         data=json_data,
                         file_name="cleaned_data.json",
                         mime="application/json",
@@ -1788,10 +1786,10 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
 
 def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the CSV merger interface"""
-    st.header("🔗 CSV Merger Tool")
+    st.header("CSV Merger Tool")
     
     # Data source selection
-    st.subheader("📂 Select Data Sources")
+    st.subheader("Select Data Sources")
     
     col1, col2 = st.columns(2)
     
@@ -1820,7 +1818,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             else:
                 st.info("No artifacts available. Create some in the Data Cleaning tool first!")
         else:  # Paste Text
-            st.info("📝 Paste your LEFT dataset (CSV or Markdown table format)")
+            st.info("Paste your LEFT dataset (CSV or Markdown table format)")
             left_pasted_text = st.text_area(
                 "Paste LEFT CSV data:",
                 height=150,
@@ -1829,7 +1827,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             )
             
             if left_pasted_text.strip():
-                if st.button("📊 Parse LEFT Data", type="secondary", key="parse_left"):
+                if st.button("Parse LEFT Data", type="secondary", key="parse_left"):
                     if processor.load_pasted_text(left_pasted_text, 0, "Left Pasted Data"):
                         st.success("✅ Successfully parsed LEFT data!")
                         st.rerun()
@@ -1872,7 +1870,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             else:
                 st.info("No artifacts available. Create some in the Data Cleaning tool first!")
         else:  # Paste Text
-            st.info("📝 Paste your RIGHT dataset (CSV or Markdown table format)")
+            st.info("Paste your RIGHT dataset (CSV or Markdown table format)")
             right_pasted_text = st.text_area(
                 "Paste RIGHT CSV data:",
                 height=150,
@@ -1881,7 +1879,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             )
             
             if right_pasted_text.strip():
-                if st.button("📊 Parse RIGHT Data", type="secondary", key="parse_right"):
+                if st.button("Parse RIGHT Data", type="secondary", key="parse_right"):
                     if processor.load_pasted_text(right_pasted_text, 1, "Right Pasted Data"):
                         st.success("✅ Successfully parsed RIGHT data!")
                         st.rerun()
@@ -1892,7 +1890,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
         processor.dataframes[1] is not None):
         
         # Show file previews
-        st.subheader("📋 Data Preview")
+        st.subheader("Data Preview")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1906,7 +1904,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             st.caption(f"{len(processor.dataframes[1]):,} rows, {len(processor.dataframes[1].columns)} columns")
         
         # Key selection
-        st.subheader("🔑 Join Configuration")
+        st.subheader("Join Configuration")
         
         col1, col2, col3 = st.columns([2, 2, 1])
         
@@ -1919,7 +1917,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             right_key = st.selectbox("Right dataset join key:", [""] + right_cols, key="right_key_select")
         
         with col3:
-            if st.button("🔍 Auto-detect", use_container_width=True):
+            if st.button("Auto-detect", use_container_width=True):
                 auto_left, auto_right = processor.auto_detect_keys(0, 1)
                 if auto_left and auto_right:
                     st.success(f"Found: {auto_left} ↔ {auto_right}")
@@ -1940,16 +1938,16 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             "Select join type:",
             ["inner", "left", "right", "outer", "union"],
             format_func=lambda x: {
-                "inner": "🎯 Inner Join (Intersection)",
-                "left": "⬅️ Left Join",
-                "right": "➡️ Right Join", 
-                "outer": "🔄 Full Outer Join",
-                "union": "➕ Union (All Records)"
+                "inner": "Inner Join (Intersection)",
+                "left": "Left Join",
+                "right": "Right Join", 
+                "outer": "Full Outer Join",
+                "union": "Union (All Records)"
             }[x]
         )
         
         # Perform merge
-        if st.button("🔗 Perform Merge", type="primary", use_container_width=True):
+        if st.button("Perform Merge", type="primary", use_container_width=True):
             if left_key and right_key:
                 if processor.merge_dataframes(0, 1, left_key, right_key, join_type):
                     st.success("✅ Merge completed successfully!")
@@ -1959,7 +1957,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
         
         # Show merge results
         if processor.merged_df is not None:
-            st.subheader("📊 Merge Results")
+            st.subheader("Merge Results")
             
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -1972,7 +1970,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             st.dataframe(processor.merged_df.head(20), use_container_width=True)
             
             # Save merged result as artifact
-            st.subheader("💾 Save & Download")
+            st.subheader("Save & Download")
             
             col1, col2 = st.columns([2, 1])
             
@@ -1984,7 +1982,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                 )
             
             with col2:
-                if st.button("💾 Save Merge Result", type="primary", use_container_width=True):
+                if st.button("Save Merge Result", type="primary", use_container_width=True):
                     if merge_artifact_name.strip():
                         artifact = DataArtifact(
                             name=merge_artifact_name.strip(),
@@ -2003,7 +2001,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             with col1:
                 csv_data = convert_df_to_csv(processor.merged_df)
                 st.download_button(
-                    "📥 Download CSV",
+                    "Download CSV",
                     data=csv_data,
                     file_name="merged_data.csv",
                     mime="text/csv",
@@ -2013,7 +2011,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             with col2:
                 excel_data = convert_df_to_excel(processor.merged_df)
                 st.download_button(
-                    "📊 Download Excel",
+                    "Download Excel",
                     data=excel_data,
                     file_name="merged_data.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2023,14 +2021,14 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             with col3:
                 json_data = processor.merged_df.to_json(orient='records', indent=2)
                 st.download_button(
-                    "🔄 Download JSON",
+                    "Download JSON",
                     data=json_data,
                     file_name="merged_data.json",
                     mime="application/json",
                     use_container_width=True
                 )
     else:
-        st.info("👆 Please select both left and right datasets to proceed with merging")
+        st.info("Please select both left and right datasets to proceed with merging")
 
 def main():
     """Main application function"""
@@ -2046,7 +2044,7 @@ def main():
     
     # Add logout button and artifact manager in sidebar
     with st.sidebar:
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("Logout", use_container_width=True):
             st.session_state.authenticated = False
             st.rerun()
         
@@ -2058,7 +2056,7 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header fade-in">
-        <h1>🔧 CSV Data Processing Suite</h1>
+        <h1>CSV Data Processing Suite</h1>
         <p>Complete toolkit for CSV data cleaning, merging, and analysis</p>
         <p style="font-size: 1rem; opacity: 0.9; margin-top: 0.5rem;">Create artifacts in Data Cleaning, then reuse them in CSV Merger</p>
     </div>
@@ -2071,7 +2069,7 @@ def main():
     processor = st.session_state.processor
     
     # Navigation tabs
-    tab1, tab2 = st.tabs(["🧹 Data Cleaning", "🔗 CSV Merger"])
+    tab1, tab2 = st.tabs(["Data Cleaning", "CSV Merger"])
     
     with tab1:
         render_data_cleaning_tool(processor, artifact_manager)
@@ -2082,8 +2080,8 @@ def main():
     # Footer
     st.markdown("""
     <div class="footer">
-        <p>Built with ❤️ using Streamlit | Professional CSV Data Processing Suite</p>
-        <p>🔧 <strong>Workflow:</strong> Clean Data → Save as Artifact → Use in Merger → Export Results</p>
+        <p>Built with Streamlit | Professional CSV Data Processing Suite</p>
+        <p><strong>Workflow:</strong> Clean Data → Save as Artifact → Use in Merger → Export Results</p>
     </div>
     """, unsafe_allow_html=True)
 
