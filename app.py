@@ -1292,13 +1292,13 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         st.session_state[f"show_popup_{artifact_name}"] = True
                 
                 with col2:
-                    if st.button("✏ Rename", key=f"rename_{artifact_name}", 
+                    if st.button("◈ Rename", key=f"rename_{artifact_name}", 
                                help="Rename artifact", use_container_width=True):
                         st.session_state[f"rename_mode_{artifact_name}"] = True
                         st.rerun()
                 
                 with col3:
-                    if st.button("📋 Copy", key=f"copy_{artifact_name}", 
+                    if st.button("◐ Copy", key=f"copy_{artifact_name}", 
                                help="Duplicate artifact", use_container_width=True):
                         # Create a copy with timestamp
                         new_name = f"{artifact_name}_copy_{datetime.now().strftime('%H%M%S')}"
@@ -1308,20 +1308,20 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                             source=artifact.source
                         )
                         if artifact_manager.save_artifact(new_artifact):
-                            st.success(f"✅ Copied as {new_name}")
+                            st.success(f"✓ Copied as {new_name}")
                             st.rerun()
                 
                 with col4:
-                    if st.button("🗑 Delete", key=f"delete_{artifact_name}", 
+                    if st.button("◌ Delete", key=f"delete_{artifact_name}", 
                                help="Delete artifact", use_container_width=True):
                         if st.session_state.get(f'confirm_delete_{artifact_name}', False):
                             if artifact_manager.delete_artifact(artifact_name):
-                                st.success(f"✅ Deleted")
+                                st.success(f"✓ Deleted")
                                 st.session_state[f'confirm_delete_{artifact_name}'] = False
                                 st.rerun()
                         else:
                             st.session_state[f'confirm_delete_{artifact_name}'] = True
-                            st.warning("⚠️ Click again to confirm")
+                            st.warning("⚠ Click again to confirm")
                             st.rerun()
                 
                 # Rename dialog
@@ -1332,7 +1332,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button("✅ Save", key="save_rename", type="primary", use_container_width=True):
+                            if st.button("◆ Save", key="save_rename", type="primary", use_container_width=True):
                                 if new_name.strip() and new_name.strip() != artifact_name:
                                     if new_name.strip() not in artifact_manager.list_artifacts():
                                         # Create new artifact with new name
@@ -1354,7 +1354,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                                     st.error("❌ Enter a valid new name")
                         
                         with col2:
-                            if st.button("❌ Cancel", key="cancel_rename", use_container_width=True):
+                            if st.button("◇ Cancel", key="cancel_rename", use_container_width=True):
                                 st.session_state[f"rename_mode_{artifact_name}"] = False
                                 st.rerun()
                     
@@ -1380,7 +1380,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         st.markdown("**Data Preview:**")
                         st.dataframe(artifact.dataframe.head(20), use_container_width=True)
                         
-                        if st.button("✅ Close", key="close_preview", type="primary", use_container_width=True):
+                        if st.button("◇ Close", key="close_preview", type="primary", use_container_width=True):
                             st.session_state[f"show_popup_{artifact_name}"] = False
                             st.rerun()
                     
@@ -1845,7 +1845,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col1:
                     csv_data = convert_df_to_csv(processor.cleaned_df)
                     st.download_button(
-                        "📄 Download CSV",
+                        "▼ Download CSV",
                         data=csv_data,
                         file_name="cleaned_data.csv",
                         mime="text/csv",
@@ -1855,7 +1855,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col2:
                     excel_data = convert_df_to_excel(processor.cleaned_df)
                     st.download_button(
-                        "📊 Download Excel",
+                        "▼ Download Excel",
                         data=excel_data,
                         file_name="cleaned_data.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1865,7 +1865,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 with col3:
                     json_data = processor.cleaned_df.to_json(orient='records', indent=2)
                     st.download_button(
-                        "🔗 Download JSON",
+                        "▼ Download JSON",
                         data=json_data,
                         file_name="cleaned_data.json",
                         mime="application/json",
@@ -2090,7 +2090,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             with col1:
                 csv_data = convert_df_to_csv(processor.merged_df)
                 st.download_button(
-                    "📄 Download CSV",
+                    "▼ Download CSV",
                     data=csv_data,
                     file_name="merged_data.csv",
                     mime="text/csv",
@@ -2100,7 +2100,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             with col2:
                 excel_data = convert_df_to_excel(processor.merged_df)
                 st.download_button(
-                    "📊 Download Excel",
+                    "▼ Download Excel",
                     data=excel_data,
                     file_name="merged_data.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2110,7 +2110,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             with col3:
                 json_data = processor.merged_df.to_json(orient='records', indent=2)
                 st.download_button(
-                    "🔗 Download JSON",
+                    "▼ Download JSON",
                     data=json_data,
                     file_name="merged_data.json",
                     mime="application/json",
