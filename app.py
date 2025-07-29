@@ -10,6 +10,23 @@ import json
 import os
 import uuid
 
+def get_eye_icon_base64():
+    """Get base64 encoded eye icon"""
+    try:
+        with open("icons/lucide--eye.png", "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        # Fallback to text if icon not found
+        return None
+
+def eye_icon_html(size: int = 16) -> str:
+    """Generate eye icon HTML"""
+    icon_b64 = get_eye_icon_base64()
+    if icon_b64:
+        return f'<img src="data:image/png;base64,{icon_b64}" style="width: {size}px; height: {size}px; vertical-align: middle; margin-right: 4px;">'
+    else:
+        return "▶"  # Fallback to text
+
 def lucide_icon(name: str, size: int = 16, color: str = "currentColor") -> str:
     """Generate Lucide icon HTML"""
     return f'<i data-lucide="{name}" style="width: {size}px; height: {size}px; color: {color};"></i>'
