@@ -4,12 +4,13 @@ import numpy as np
 import io
 from typing import List, Tuple, Optional, Dict, Any
 import difflib
-import hashlib
+import base64
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="CSV Merger Tool - NimbleSET Style",
-    page_icon="🔗",
+    page_title="CSV Data Processing Suite",
+    page_icon="🔧",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -23,7 +24,7 @@ def check_authentication():
         st.markdown("""
         <div class="main-header">
             <h1>🔐 Login Required</h1>
-            <p>Please enter your credentials to access the CSV Merger Tool</p>
+            <p>Please enter your credentials to access the CSV Processing Suite</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -60,16 +61,34 @@ def check_authentication():
     
     return True
 
-# Custom CSS for better styling
+# Enhanced CSS for multi-purpose app
 st.markdown("""
 <style>
     .main-header {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
         border-radius: 10px;
         color: white;
         text-align: center;
         margin-bottom: 2rem;
+    }
+    
+    .artifact-card {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .tool-card {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .stat-card {
@@ -89,26 +108,12 @@ st.markdown("""
         margin: 1rem 0;
     }
     
-    .error-message {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-    }
-    
-    .venn-diagram {
-        text-align: center;
-        padding: 1rem;
+    .artifact-manager {
         background: #f8f9fa;
+        padding: 1rem;
         border-radius: 10px;
+        border: 2px dashed #667eea;
         margin: 1rem 0;
-    }
-    
-    .join-button {
-        width: 100%;
-        margin: 0.25rem 0;
     }
     
     .footer {
@@ -122,67 +127,131 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-class CSVMerger:
-    """Main class for handling CSV merge operations"""
+class DataArtifact:
+    """Class to represent a data artifact with metadata"""
+    
+    def __init__(self, name: str, dataframe: pd.DataFrame, source: str, created_at: datetime = None):
+        self.name = name
+        self.dataframe = dataframe.copy()
+        self.source = source  # 'cleaning', 'merging', 'upload'
+        self.created_at = created_at or datetime.now()
+        self.rows = len(dataframe)
+        self.columns = len(dataframe.columns)
+        self.memory_mb = dataframe.memory_usage(deep=True).sum() / 1024 / 1024
+    
+    def get_summary(self) -> str:
+        return f"{self.name} | {self.rows:,} rows × {self.columns} cols | {self.memory_mb:.1f}MB | {self.source}"
+
+class ArtifactManager:
+    """Manages data artifacts across the application"""
     
     def __init__(self):
-        self.left_df: Optional[pd.DataFrame] = None
-        self.right_df: Optional[pd.DataFrame] = None
-        self.merged_df: Optional[pd.DataFrame] = None
-        
-    def load_csv(self, uploaded_file, file_side: str) -> bool:
-        """Load CSV file and return success status"""
+        if 'artifacts' not in st.session_state:
+            st.session_state.artifacts = {}
+    
+    def save_artifact(self, artifact: DataArtifact) -> bool:
+        """Save an artifact to session state"""
         try:
-            if uploaded_file is not None:
-                # Try different encodings
-                try:
-                    df = pd.read_csv(uploaded_file, encoding='utf-8')
-                except UnicodeDecodeError:
-                    uploaded_file.seek(0)  # Reset file pointer
-                    df = pd.read_csv(uploaded_file, encoding='latin1')
-                
-                # Clean column names
-                df.columns = df.columns.str.strip()
-                
-                if file_side == "left":
-                    self.left_df = df
-                else:
-                    self.right_df = df
-                return True
+            st.session_state.artifacts[artifact.name] = artifact
+            return True
         except Exception as e:
-            st.error(f"Error loading {file_side} CSV: {str(e)}")
+            st.error(f"Failed to save artifact: {str(e)}")
             return False
+    
+    def get_artifact(self, name: str) -> Optional[DataArtifact]:
+        """Retrieve an artifact by name"""
+        return st.session_state.artifacts.get(name)
+    
+    def list_artifacts(self) -> List[str]:
+        """Get list of all artifact names"""
+        return list(st.session_state.artifacts.keys())
+    
+    def delete_artifact(self, name: str) -> bool:
+        """Delete an artifact"""
+        if name in st.session_state.artifacts:
+            del st.session_state.artifacts[name]
+            return True
         return False
     
-    def get_column_names(self, side: str) -> List[str]:
-        """Get column names for specified side"""
-        df = self.left_df if side == "left" else self.right_df
-        return list(df.columns) if df is not None else []
+    def get_artifacts_by_source(self, source: str) -> List[DataArtifact]:
+        """Get artifacts filtered by source"""
+        return [artifact for artifact in st.session_state.artifacts.values() if artifact.source == source]
+
+class DataProcessor:
+    """Main class for handling all data processing operations"""
     
-    def auto_detect_keys(self) -> Tuple[Optional[str], Optional[str]]:
-        """Automatically detect the best matching key columns"""
-        if self.left_df is None or self.right_df is None:
+    def __init__(self, artifact_manager: ArtifactManager):
+        self.artifact_manager = artifact_manager
+        self.dataframes: List[pd.DataFrame] = []
+        self.file_names: List[str] = []
+        self.merged_df: Optional[pd.DataFrame] = None
+        self.cleaned_df: Optional[pd.DataFrame] = None
+        
+    def load_files(self, uploaded_files) -> bool:
+        """Load multiple CSV files"""
+        try:
+            self.dataframes = []
+            self.file_names = []
+            
+            for file in uploaded_files:
+                try:
+                    df = pd.read_csv(file, encoding='utf-8')
+                except UnicodeDecodeError:
+                    file.seek(0)
+                    df = pd.read_csv(file, encoding='latin1')
+                
+                df.columns = df.columns.str.strip()
+                self.dataframes.append(df)
+                self.file_names.append(file.name)
+                
+            return True
+        except Exception as e:
+            st.error(f"Error loading files: {str(e)}")
+            return False
+    
+    def load_artifact_as_dataframe(self, artifact_name: str, position: int = 0) -> bool:
+        """Load an artifact as a dataframe for processing"""
+        artifact = self.artifact_manager.get_artifact(artifact_name)
+        if artifact:
+            if position >= len(self.dataframes):
+                self.dataframes.extend([None] * (position - len(self.dataframes) + 1))
+                self.file_names.extend([''] * (position - len(self.file_names) + 1))
+            
+            self.dataframes[position] = artifact.dataframe.copy()
+            self.file_names[position] = f"Artifact: {artifact_name}"
+            return True
+        return False
+    
+    def get_column_names(self, df_index: int = 0) -> List[str]:
+        """Get column names for specified dataframe"""
+        if df_index < len(self.dataframes) and self.dataframes[df_index] is not None:
+            return list(self.dataframes[df_index].columns)
+        return []
+    
+    def auto_detect_keys(self, left_idx: int = 0, right_idx: int = 1) -> Tuple[Optional[str], Optional[str]]:
+        """Automatically detect matching key columns between two dataframes"""
+        if (len(self.dataframes) < 2 or left_idx >= len(self.dataframes) or 
+            right_idx >= len(self.dataframes) or 
+            self.dataframes[left_idx] is None or self.dataframes[right_idx] is None):
             return None, None
             
-        left_cols = set(self.left_df.columns)
-        right_cols = set(self.right_df.columns)
+        left_cols = set(self.dataframes[left_idx].columns)
+        right_cols = set(self.dataframes[right_idx].columns)
         
         # Find exact matches
         exact_matches = left_cols.intersection(right_cols)
         
         if exact_matches:
-            # Prioritize common key names
             priority_keys = ['id', 'ID', 'key', 'Key', 'code', 'Code', 'name', 'Name', 'email', 'Email']
             for key in priority_keys:
                 if key in exact_matches:
                     return key, key
-            # Return first exact match
             best_match = list(exact_matches)[0]
             return best_match, best_match
         
-        # Look for similar column names using fuzzy matching
+        # Fuzzy matching
         best_match = None
-        best_ratio = 0.6  # Minimum similarity threshold
+        best_ratio = 0.6
         
         for left_col in left_cols:
             for right_col in right_cols:
@@ -193,83 +262,129 @@ class CSVMerger:
         
         return best_match if best_match else (None, None)
     
-    def perform_join(self, left_key: str, right_key: str, join_type: str) -> bool:
-        """Perform the specified join operation"""
-        if self.left_df is None or self.right_df is None:
-            st.error("Please upload both CSV files")
-            return False
-            
-        if not left_key or not right_key:
-            st.error("Please select join keys for both files")
-            return False
-        
+    def merge_dataframes(self, left_idx: int, right_idx: int, left_key: str, right_key: str, join_type: str) -> bool:
+        """Merge two dataframes"""
         try:
-            left_df = self.left_df.copy()
-            right_df = self.right_df.copy()
+            if (left_idx >= len(self.dataframes) or right_idx >= len(self.dataframes) or
+                self.dataframes[left_idx] is None or self.dataframes[right_idx] is None):
+                st.error("Invalid dataframe indices or missing dataframes")
+                return False
+                
+            left_df = self.dataframes[left_idx].copy()
+            right_df = self.dataframes[right_idx].copy()
             
-            # Handle different key names by creating a mapping
             if left_key != right_key:
-                # Create temporary columns with standardized names for joining
                 left_df['_join_key'] = left_df[left_key]
                 right_df['_join_key'] = right_df[right_key]
                 join_on = '_join_key'
             else:
                 join_on = left_key
             
-            if join_type == "inner":
-                self.merged_df = pd.merge(left_df, right_df, on=join_on, how='inner', suffixes=('_left', '_right'))
-            elif join_type == "left":
-                self.merged_df = pd.merge(left_df, right_df, on=join_on, how='left', suffixes=('_left', '_right'))
-            elif join_type == "right":
-                self.merged_df = pd.merge(left_df, right_df, on=join_on, how='right', suffixes=('_left', '_right'))
-            elif join_type == "outer":
-                self.merged_df = pd.merge(left_df, right_df, on=join_on, how='outer', suffixes=('_left', '_right'))
-            elif join_type == "union":
-                # For union, we need to align columns first
+            if join_type == "union":
                 all_cols = list(set(left_df.columns) | set(right_df.columns))
                 left_aligned = left_df.reindex(columns=all_cols, fill_value='')
                 right_aligned = right_df.reindex(columns=all_cols, fill_value='')
                 self.merged_df = pd.concat([left_aligned, right_aligned], ignore_index=True)
+            else:
+                self.merged_df = pd.merge(left_df, right_df, on=join_on, how=join_type, suffixes=('_left', '_right'))
             
-            # Remove temporary join key if it was created
             if left_key != right_key and '_join_key' in self.merged_df.columns:
                 self.merged_df = self.merged_df.drop('_join_key', axis=1)
             
             return True
-            
         except Exception as e:
-            st.error(f"Join operation failed: {str(e)}")
+            st.error(f"Merge operation failed: {str(e)}")
             return False
     
-    def get_join_stats(self) -> Dict[str, int]:
-        """Get statistics about the join operation"""
-        stats = {
-            "left_records": len(self.left_df) if self.left_df is not None else 0,
-            "right_records": len(self.right_df) if self.right_df is not None else 0,
-            "result_records": len(self.merged_df) if self.merged_df is not None else 0,
-            "result_columns": len(self.merged_df.columns) if self.merged_df is not None else 0
-        }
-        return stats
+    def clean_data(self, options: Dict[str, Any]) -> bool:
+        """Clean data based on provided options"""
+        try:
+            if options.get('merge_files', False) and len(self.dataframes) > 1:
+                # Merge multiple files
+                valid_dfs = [df for df in self.dataframes if df is not None]
+                if len(valid_dfs) < 2:
+                    st.error("Need at least 2 valid dataframes to merge")
+                    return False
+                
+                if options.get('keep_first_header_only', True):
+                    for i in range(1, len(valid_dfs)):
+                        common_cols = valid_dfs[0].columns.intersection(valid_dfs[i].columns)
+                        valid_dfs[i] = valid_dfs[i][common_cols]
+                
+                self.cleaned_df = pd.concat(valid_dfs, ignore_index=True, join='outer')
+            else:
+                # Work with first valid dataframe if no merge
+                valid_df = next((df for df in self.dataframes if df is not None), None)
+                self.cleaned_df = valid_df.copy() if valid_df is not None else None
+            
+            if self.cleaned_df is not None:
+                # Apply cleaning operations
+                if options.get('remove_duplicates', False):
+                    self.cleaned_df.drop_duplicates(inplace=True)
+                
+                if options.get('remove_empty_rows', True):
+                    self.cleaned_df.dropna(how='all', inplace=True)
+                
+                if options.get('remove_empty_columns', False):
+                    self.cleaned_df.dropna(axis=1, how='all', inplace=True)
+                
+                if options.get('strip_whitespace', True):
+                    for col in self.cleaned_df.select_dtypes(include=['object']).columns:
+                        self.cleaned_df[col] = self.cleaned_df[col].astype(str).str.strip()
+                
+                if options.get('standardize_case', False):
+                    case_option = options.get('case_type', 'lower')
+                    for col in self.cleaned_df.select_dtypes(include=['object']).columns:
+                        if case_option == 'lower':
+                            self.cleaned_df[col] = self.cleaned_df[col].astype(str).str.lower()
+                        elif case_option == 'upper':
+                            self.cleaned_df[col] = self.cleaned_df[col].astype(str).str.upper()
+                        elif case_option == 'title':
+                            self.cleaned_df[col] = self.cleaned_df[col].astype(str).str.title()
+            
+            return True
+        except Exception as e:
+            st.error(f"Data cleaning failed: {str(e)}")
+            return False
 
-def create_venn_diagram():
-    """Create a text-based Venn diagram representation"""
-    st.markdown("""
-    <div class="venn-diagram">
-        <h4>📊 Data Relationship Visualization</h4>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap;">
-            <div style="background: #4facfe; color: white; padding: 20px; border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; opacity: 0.8;">
-                <strong>LEFT<br>ONLY</strong>
-            </div>
-            <div style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; padding: 20px; border-radius: 20px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-                <strong>BOTH</strong>
-            </div>
-            <div style="background: #00f2fe; color: white; padding: 20px; border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; opacity: 0.8;">
-                <strong>RIGHT<br>ONLY</strong>
-            </div>
+def render_artifact_manager(artifact_manager: ArtifactManager):
+    """Render the artifact management interface"""
+    artifacts = artifact_manager.list_artifacts()
+    
+    if artifacts:
+        st.markdown("""
+        <div class="artifact-manager">
+            <h4>📦 Data Artifacts</h4>
+            <p>Saved datasets that can be reused across tools</p>
         </div>
-        <p style="margin-top: 10px; color: #666;">The intersection represents records that match on the selected key</p>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        for artifact_name in artifacts:
+            artifact = artifact_manager.get_artifact(artifact_name)
+            
+            col1, col2, col3 = st.columns([3, 1, 1])
+            
+            with col1:
+                st.markdown(f"""
+                <div class="artifact-card">
+                    <strong>{artifact.name}</strong><br>
+                    <small>{artifact.get_summary()}</small><br>
+                    <small>Created: {artifact.created_at.strftime('%Y-%m-%d %H:%M')}</small>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                if st.button("👁️ View", key=f"view_{artifact_name}", use_container_width=True):
+                    with st.expander(f"Preview: {artifact_name}", expanded=True):
+                        st.dataframe(artifact.dataframe.head(10), use_container_width=True)
+            
+            with col3:
+                if st.button("🗑️ Delete", key=f"delete_{artifact_name}", use_container_width=True):
+                    if artifact_manager.delete_artifact(artifact_name):
+                        st.success(f"Deleted {artifact_name}")
+                        st.rerun()
+    else:
+        st.info("📦 No artifacts saved yet. Create some in the Data Cleaning section!")
 
 @st.cache_data
 def convert_df_to_csv(df):
@@ -281,359 +396,417 @@ def convert_df_to_excel(df):
     """Convert DataFrame to Excel bytes with caching"""
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Merged Data', index=False)
+        df.to_excel(writer, sheet_name='Processed Data', index=False)
     return output.getvalue()
 
-def main():
-    # Check authentication first
-    if not check_authentication():
-        return
+def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
+    """Render the data cleaning interface"""
+    st.header("🧹 Data Cleaning Tool")
     
-    # Add logout button in sidebar
-    with st.sidebar:
-        if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.authenticated = False
-            st.rerun()
-        st.divider()
+    # File upload
+    uploaded_files = st.file_uploader(
+        "Choose CSV files",
+        type="csv",
+        accept_multiple_files=True,
+        help="Upload one or multiple CSV files for cleaning",
+        key="cleaning_uploader"
+    )
     
-    # Header
-    st.markdown("""
-    <div class="main-header">
-        <h1>🔗 CSV Merger Tool</h1>
-        <p>Merge CSV files with automatic key detection and advanced join operations</p>
-        <p style="font-size: 0.9em; opacity: 0.8;">Similar to NimbleSET - Compare, merge, and analyze your data sets</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Initialize session state
-    if 'merger' not in st.session_state:
-        st.session_state.merger = CSVMerger()
-    
-    merger = st.session_state.merger
-    
-    # Sidebar for controls
-    with st.sidebar:
-        st.header("🎛️ Controls")
-        
-        # File uploads
-        st.subheader("📁 Upload CSV Files")
-        
-        left_file = st.file_uploader(
-            "Choose LEFT CSV file",
-            type=['csv'],
-            key="left_file",
-            help="Upload the first CSV file for comparison"
-        )
-        
-        right_file = st.file_uploader(
-            "Choose RIGHT CSV file", 
-            type=['csv'],
-            key="right_file",
-            help="Upload the second CSV file for comparison"
-        )
-        
-        # Load files
-        left_loaded = merger.load_csv(left_file, "left")
-        right_loaded = merger.load_csv(right_file, "right")
-        
-        # Show file info
-        if left_loaded and merger.left_df is not None:
-            st.success(f"✅ Left file: {len(merger.left_df):,} rows, {len(merger.left_df.columns)} columns")
-        
-        if right_loaded and merger.right_df is not None:
-            st.success(f"✅ Right file: {len(merger.right_df):,} rows, {len(merger.right_df.columns)} columns")
-        
-        st.divider()
-        
-        # Key selection
-        if merger.left_df is not None and merger.right_df is not None:
-            st.subheader("🔑 Join Configuration")
+    if uploaded_files:
+        if processor.load_files(uploaded_files):
+            st.success(f"✅ Loaded {len(processor.dataframes)} file(s)")
             
-            # Auto-detect button
-            if st.button("🔍 Auto-detect Keys", use_container_width=True, help="Automatically find matching column names"):
-                left_key, right_key = merger.auto_detect_keys()
-                if left_key and right_key:
-                    st.session_state.left_key = left_key
-                    st.session_state.right_key = right_key
-                    st.success(f"Auto-detected: {left_key} ↔ {right_key}")
-                else:
-                    st.warning("No matching keys found. Please select manually.")
-            
-            # Key selection dropdowns
-            left_cols = merger.get_column_names("left")
-            right_cols = merger.get_column_names("right")
-            
-            left_key = st.selectbox(
-                "Left file join key:",
-                options=[""] + left_cols,
-                index=left_cols.index(st.session_state.get('left_key', '')) + 1 if st.session_state.get('left_key', '') in left_cols else 0,
-                help="Select the column to join on from the left file"
-            )
-            
-            right_key = st.selectbox(
-                "Right file join key:",
-                options=[""] + right_cols,
-                index=right_cols.index(st.session_state.get('right_key', '')) + 1 if st.session_state.get('right_key', '') in right_cols else 0,
-                help="Select the column to join on from the right file"
-            )
-            
-            st.divider()
-            
-            # Join type selection
-            st.subheader("⚙️ Join Operations")
-            
-            join_type = st.selectbox(
-                "Select join type:",
-                options=["inner", "left", "right", "outer", "union"],
-                format_func=lambda x: {
-                    "inner": "🎯 Inner Join (Intersection)",
-                    "left": "⬅️ Left Join", 
-                    "right": "➡️ Right Join",
-                    "outer": "🔄 Full Outer Join",
-                    "union": "➕ Union (All Records)"
-                }[x],
-                help="Choose how to combine the two datasets"
-            )
-            
-            # Quick join buttons
-            st.subheader("🚀 Quick Actions")
+            # Cleaning options
+            st.subheader("🔧 Cleaning Options")
             
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("⬅️ Left Join", use_container_width=True, help="Keep all left records"):
-                    if merger.perform_join(left_key, right_key, "left"):
-                        st.rerun()
-                
-                if st.button("🎯 Inner Join", use_container_width=True, help="Only matching records"):
-                    if merger.perform_join(left_key, right_key, "inner"):
-                        st.rerun()
-                
-                if st.button("➕ Union", use_container_width=True, help="All records combined"):
-                    if merger.perform_join(left_key, right_key, "union"):
-                        st.rerun()
+                merge_files = st.checkbox("Merge uploaded CSV files", value=len(processor.dataframes) > 1)
+                remove_duplicates = st.checkbox("Remove duplicate rows", value=False)
+                remove_empty_rows = st.checkbox("Remove empty rows", value=True)
+                remove_empty_columns = st.checkbox("Remove empty columns", value=False)
             
             with col2:
-                if st.button("➡️ Right Join", use_container_width=True, help="Keep all right records"):
-                    if merger.perform_join(left_key, right_key, "right"):
-                        st.rerun()
+                keep_first_header_only = st.checkbox("Keep only first file's header structure", value=True)
+                strip_whitespace = st.checkbox("Strip whitespace from text", value=True)
+                standardize_case = st.checkbox("Standardize text case", value=False)
                 
-                if st.button("🔄 Full Outer", use_container_width=True, help="All records with nulls"):
-                    if merger.perform_join(left_key, right_key, "outer"):
-                        st.rerun()
+                if standardize_case:
+                    case_type = st.selectbox("Case type", ["lower", "upper", "title"])
+                else:
+                    case_type = "lower"
+            
+            # Preview original data
+            show_original = st.checkbox("Show original data", value=True)
+            if show_original:
+                for i, df in enumerate(processor.dataframes):
+                    if df is not None:
+                        with st.expander(f"📄 {processor.file_names[i]} ({len(df):,} rows, {len(df.columns)} columns)"):
+                            st.dataframe(df.head(10), use_container_width=True)
+            
+            # Process data
+            if st.button("🚀 Clean Data", type="primary", use_container_width=True):
+                cleaning_options = {
+                    'merge_files': merge_files,
+                    'keep_first_header_only': keep_first_header_only,
+                    'remove_duplicates': remove_duplicates,
+                    'remove_empty_rows': remove_empty_rows,
+                    'remove_empty_columns': remove_empty_columns,
+                    'strip_whitespace': strip_whitespace,
+                    'standardize_case': standardize_case,
+                    'case_type': case_type
+                }
                 
-                if st.button("⚡ Intersection", use_container_width=True, help="Same as inner join"):
-                    if merger.perform_join(left_key, right_key, "inner"):
-                        st.rerun()
-            
-            # Main join button
-            if st.button(f"🔗 Perform {join_type.title()} Join", type="primary", use_container_width=True):
-                if merger.perform_join(left_key, right_key, join_type):
-                    st.rerun()
-    
-    # Main content area
-    if merger.left_df is None or merger.right_df is None:
-        st.info("👆 Please upload both CSV files using the sidebar to get started")
-        
-        # Show example Venn diagram
-        create_venn_diagram()
-        
-        # Instructions
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            ## 📖 How to Use This Tool
-            
-            1. **Upload Files**: Use the sidebar to upload your LEFT and RIGHT CSV files
-            2. **Auto-detect Keys**: Click "Auto-detect Keys" to find matching columns automatically
-            3. **Choose Join Type**: Select from various join operations:
-               - **Inner Join**: Only matching records (intersection)
-               - **Left Join**: All left records + matching right records
-               - **Right Join**: All right records + matching left records
-               - **Full Outer**: All records from both files
-               - **Union**: Simple combination of all records
-            4. **Select Columns**: Choose which columns to include in results
-            5. **Download**: Export your merged data in CSV, Excel, or JSON format
-            """)
-        
-        with col2:
-            st.markdown("""
-            ## 🎯 Join Types Explained
-            
-            - **Left Only**: Records that exist only in the left file
-            - **Right Only**: Records that exist only in the right file  
-            - **Both (Intersection)**: Records that match between both files
-            - **Union**: All records combined from both files
-            
-            ## 🚀 Features
-            
-            - ✅ **Automatic key detection** with smart matching
-            - ✅ **Multiple export formats** (CSV, Excel, JSON)
-            - ✅ **Real-time statistics** and data preview
-            - ✅ **Professional interface** with responsive design
-            - ✅ **Large file support** with optimized processing
-            """)
-    
-    else:
-        # Show file previews
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("📋 Left File Preview")
-            with st.expander("Show/Hide Preview", expanded=True):
-                st.dataframe(merger.left_df.head(10), use_container_width=True)
-                st.caption(f"Showing first 10 of {len(merger.left_df):,} rows")
-        
-        with col2:
-            st.subheader("📋 Right File Preview") 
-            with st.expander("Show/Hide Preview", expanded=True):
-                st.dataframe(merger.right_df.head(10), use_container_width=True)
-                st.caption(f"Showing first 10 of {len(merger.right_df):,} rows")
-        
-        # Show Venn diagram
-        create_venn_diagram()
-        
-        # Results section
-        if merger.merged_df is not None:
-            st.header("📊 Merge Results")
-            
-            # Statistics
-            stats = merger.get_join_stats()
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Left Records", f"{stats['left_records']:,}")
-            
-            with col2:
-                st.metric("Right Records", f"{stats['right_records']:,}")
-            
-            with col3:
-                st.metric("Result Records", f"{stats['result_records']:,}")
-            
-            with col4:
-                st.metric("Result Columns", stats["result_columns"])
-            
-            # Column selection
-            st.subheader("📋 Select Columns to Display")
-            
-            all_columns = list(merger.merged_df.columns)
-            
-            col1, col2, col3 = st.columns([1, 1, 2])
-            
-            with col1:
-                if st.button("Select All", use_container_width=True):
-                    st.session_state.selected_columns = all_columns
+                if processor.clean_data(cleaning_options):
+                    st.success("✅ Data cleaning completed!")
                     st.rerun()
             
-            with col2:
-                if st.button("Deselect All", use_container_width=True):
-                    st.session_state.selected_columns = []
-                    st.rerun()
-            
-            # Initialize selected columns if not exists
-            if 'selected_columns' not in st.session_state:
-                st.session_state.selected_columns = all_columns
-            
-            selected_columns = st.multiselect(
-                "Choose columns:",
-                options=all_columns,
-                default=st.session_state.selected_columns,
-                key="column_selector",
-                help="Select which columns to include in the final result"
-            )
-            
-            # Update session state
-            st.session_state.selected_columns = selected_columns
-            
-            # Display filtered results
-            if selected_columns:
-                st.subheader("🔍 Results Preview")
-                filtered_df = merger.merged_df[selected_columns]
-                
-                # Show preview (first 1000 rows)
-                preview_df = filtered_df.head(1000)
-                st.dataframe(preview_df, use_container_width=True)
-                
-                if len(filtered_df) > 1000:
-                    st.info(f"📊 Showing first 1,000 rows. Total rows: {len(filtered_df):,}")
-                
-                # Download section
-                st.subheader("💾 Download Results")
+            # Show cleaned results
+            if processor.cleaned_df is not None:
+                st.subheader("📊 Cleaned Data Results")
                 
                 col1, col2, col3 = st.columns(3)
-                
-                # CSV download
                 with col1:
-                    csv_data = convert_df_to_csv(filtered_df)
-                    st.download_button(
-                        label="📥 Download CSV",
-                        data=csv_data,
-                        file_name="merged_data.csv",
-                        mime="text/csv",
-                        type="primary",
-                        use_container_width=True,
-                        help="Download as CSV file"
-                    )
-                
-                # Excel download
+                    st.metric("Rows", f"{len(processor.cleaned_df):,}")
                 with col2:
-                    excel_data = convert_df_to_excel(filtered_df)
-                    st.download_button(
-                        label="📊 Download Excel",
-                        data=excel_data,
-                        file_name="merged_data.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                        help="Download as Excel file"
-                    )
-                
-                # JSON download
+                    st.metric("Columns", len(processor.cleaned_df.columns))
                 with col3:
-                    json_data = filtered_df.to_json(orient='records', indent=2)
-                    st.download_button(
-                        label="🔄 Download JSON",
-                        data=json_data,
-                        file_name="merged_data.json",
-                        mime="application/json",
-                        use_container_width=True,
-                        help="Download as JSON file"
+                    memory_mb = processor.cleaned_df.memory_usage(deep=True).sum() / 1024 / 1024
+                    st.metric("Memory", f"{memory_mb:.2f} MB")
+                
+                # Preview cleaned data
+                st.dataframe(processor.cleaned_df.head(20), use_container_width=True)
+                
+                # Save as artifact
+                st.subheader("💾 Save & Download")
+                
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    artifact_name = st.text_input(
+                        "Artifact name (to reuse in CSV Merger):",
+                        value=f"cleaned_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                        help="Give this cleaned dataset a name to use it in the CSV Merger tool"
                     )
                 
-                # Additional statistics
-                with st.expander("📈 Detailed Statistics"):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.write("**Data Types:**")
-                        dtypes_df = pd.DataFrame({
-                            'Column': filtered_df.columns,
-                            'Data Type': filtered_df.dtypes.astype(str),
-                            'Non-Null Count': filtered_df.count().values,
-                            'Null Count': len(filtered_df) - filtered_df.count().values
-                        })
-                        st.dataframe(dtypes_df, use_container_width=True)
-                    
-                    with col2:
-                        st.write("**Memory Usage:**")
-                        memory_usage = filtered_df.memory_usage(deep=True)
-                        total_memory = memory_usage.sum()
-                        st.metric("Total Memory", f"{total_memory / 1024 / 1024:.2f} MB")
-                        
-                        if len(filtered_df) > 0:
-                            st.write("**Sample of Merged Data:**")
-                            sample_size = min(5, len(filtered_df))
-                            st.dataframe(filtered_df.sample(sample_size), use_container_width=True)
-            
+                with col2:
+                    if st.button("💾 Save as Artifact", type="primary", use_container_width=True):
+                        if artifact_name.strip():
+                            artifact = DataArtifact(
+                                name=artifact_name.strip(),
+                                dataframe=processor.cleaned_df,
+                                source="cleaning"
+                            )
+                            if artifact_manager.save_artifact(artifact):
+                                st.success(f"✅ Saved as artifact: {artifact_name}")
+                                st.rerun()
+                        else:
+                            st.error("Please enter an artifact name")
+                
+                # Download options
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    csv_data = convert_df_to_csv(processor.cleaned_df)
+                    st.download_button(
+                        "📥 Download CSV",
+                        data=csv_data,
+                        file_name="cleaned_data.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    excel_data = convert_df_to_excel(processor.cleaned_df)
+                    st.download_button(
+                        "📊 Download Excel",
+                        data=excel_data,
+                        file_name="cleaned_data.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                
+                with col3:
+                    json_data = processor.cleaned_df.to_json(orient='records', indent=2)
+                    st.download_button(
+                        "🔄 Download JSON",
+                        data=json_data,
+                        file_name="cleaned_data.json",
+                        mime="application/json",
+                        use_container_width=True
+                    )
+
+def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
+    """Render the CSV merger interface"""
+    st.header("🔗 CSV Merger Tool")
+    
+    # Data source selection
+    st.subheader("📂 Select Data Sources")
+    
+    col1, col2 = st.columns(2)
+    
+    # LEFT data source
+    with col1:
+        st.markdown("**LEFT Dataset**")
+        left_source = st.radio(
+            "Choose left data source:",
+            ["Upload File", "Use Artifact"],
+            key="left_source",
+            horizontal=True
+        )
+        
+        if left_source == "Upload File":
+            left_file = st.file_uploader("Choose LEFT CSV file", type=['csv'], key="merger_left")
+            if left_file:
+                if processor.load_files([left_file]):
+                    st.success(f"✅ Loaded: {left_file.name}")
+        else:
+            artifacts = artifact_manager.list_artifacts()
+            if artifacts:
+                left_artifact = st.selectbox("Select left artifact:", [""] + artifacts, key="left_artifact")
+                if left_artifact:
+                    if processor.load_artifact_as_dataframe(left_artifact, 0):
+                        st.success(f"✅ Loaded artifact: {left_artifact}")
             else:
-                st.warning("⚠️ Please select at least one column to display results.")
+                st.info("No artifacts available. Create some in the Data Cleaning tool first!")
+    
+    # RIGHT data source
+    with col2:
+        st.markdown("**RIGHT Dataset**")
+        right_source = st.radio(
+            "Choose right data source:",
+            ["Upload File", "Use Artifact"],
+            key="right_source",
+            horizontal=True
+        )
+        
+        if right_source == "Upload File":
+            right_file = st.file_uploader("Choose RIGHT CSV file", type=['csv'], key="merger_right")
+            if right_file:
+                # Ensure we have space for the right file
+                if len(processor.dataframes) < 2:
+                    processor.dataframes.append(None)
+                    processor.file_names.append("")
+                
+                try:
+                    df = pd.read_csv(right_file, encoding='utf-8')
+                except UnicodeDecodeError:
+                    right_file.seek(0)
+                    df = pd.read_csv(right_file, encoding='latin1')
+                
+                df.columns = df.columns.str.strip()
+                processor.dataframes[1] = df
+                processor.file_names[1] = right_file.name
+                st.success(f"✅ Loaded: {right_file.name}")
+        else:
+            artifacts = artifact_manager.list_artifacts()
+            if artifacts:
+                right_artifact = st.selectbox("Select right artifact:", [""] + artifacts, key="right_artifact")
+                if right_artifact:
+                    if processor.load_artifact_as_dataframe(right_artifact, 1):
+                        st.success(f"✅ Loaded artifact: {right_artifact}")
+            else:
+                st.info("No artifacts available. Create some in the Data Cleaning tool first!")
+    
+    # Check if we have both datasets
+    if (len(processor.dataframes) >= 2 and 
+        processor.dataframes[0] is not None and 
+        processor.dataframes[1] is not None):
+        
+        # Show file previews
+        st.subheader("📋 Data Preview")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Left Dataset Preview**")
+            st.dataframe(processor.dataframes[0].head(5), use_container_width=True)
+            st.caption(f"{len(processor.dataframes[0]):,} rows, {len(processor.dataframes[0].columns)} columns")
+        
+        with col2:
+            st.markdown("**Right Dataset Preview**")
+            st.dataframe(processor.dataframes[1].head(5), use_container_width=True)
+            st.caption(f"{len(processor.dataframes[1]):,} rows, {len(processor.dataframes[1].columns)} columns")
+        
+        # Key selection
+        st.subheader("🔑 Join Configuration")
+        
+        col1, col2, col3 = st.columns([2, 2, 1])
+        
+        with col1:
+            left_cols = processor.get_column_names(0)
+            left_key = st.selectbox("Left dataset join key:", [""] + left_cols, key="left_key_select")
+        
+        with col2:
+            right_cols = processor.get_column_names(1)
+            right_key = st.selectbox("Right dataset join key:", [""] + right_cols, key="right_key_select")
+        
+        with col3:
+            if st.button("🔍 Auto-detect", use_container_width=True):
+                auto_left, auto_right = processor.auto_detect_keys(0, 1)
+                if auto_left and auto_right:
+                    st.success(f"Found: {auto_left} ↔ {auto_right}")
+                    # Store in session state to update selectboxes
+                    st.session_state.suggested_left_key = auto_left
+                    st.session_state.suggested_right_key = auto_right
+                else:
+                    st.warning("No matching keys found")
+        
+        # Use suggested keys if available
+        if 'suggested_left_key' in st.session_state and not left_key:
+            left_key = st.session_state.suggested_left_key
+        if 'suggested_right_key' in st.session_state and not right_key:
+            right_key = st.session_state.suggested_right_key
+        
+        # Join type selection
+        join_type = st.selectbox(
+            "Select join type:",
+            ["inner", "left", "right", "outer", "union"],
+            format_func=lambda x: {
+                "inner": "🎯 Inner Join (Intersection)",
+                "left": "⬅️ Left Join",
+                "right": "➡️ Right Join", 
+                "outer": "🔄 Full Outer Join",
+                "union": "➕ Union (All Records)"
+            }[x]
+        )
+        
+        # Perform merge
+        if st.button("🔗 Perform Merge", type="primary", use_container_width=True):
+            if left_key and right_key:
+                if processor.merge_dataframes(0, 1, left_key, right_key, join_type):
+                    st.success("✅ Merge completed successfully!")
+                    st.rerun()
+            else:
+                st.error("Please select join keys for both datasets")
+        
+        # Show merge results
+        if processor.merged_df is not None:
+            st.subheader("📊 Merge Results")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Left Records", f"{len(processor.dataframes[0]):,}")
+            with col2:
+                st.metric("Right Records", f"{len(processor.dataframes[1]):,}")
+            with col3:
+                st.metric("Result Records", f"{len(processor.merged_df):,}")
+            
+            st.dataframe(processor.merged_df.head(20), use_container_width=True)
+            
+            # Save merged result as artifact
+            st.subheader("💾 Save & Download")
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                merge_artifact_name = st.text_input(
+                    "Save merged result as artifact:",
+                    value=f"merged_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    help="Save this merged dataset to reuse later"
+                )
+            
+            with col2:
+                if st.button("💾 Save Merge Result", type="primary", use_container_width=True):
+                    if merge_artifact_name.strip():
+                        artifact = DataArtifact(
+                            name=merge_artifact_name.strip(),
+                            dataframe=processor.merged_df,
+                            source="merging"
+                        )
+                        if artifact_manager.save_artifact(artifact):
+                            st.success(f"✅ Saved as artifact: {merge_artifact_name}")
+                            st.rerun()
+                    else:
+                        st.error("Please enter an artifact name")
+            
+            # Download merged data
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                csv_data = convert_df_to_csv(processor.merged_df)
+                st.download_button(
+                    "📥 Download CSV",
+                    data=csv_data,
+                    file_name="merged_data.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            
+            with col2:
+                excel_data = convert_df_to_excel(processor.merged_df)
+                st.download_button(
+                    "📊 Download Excel",
+                    data=excel_data,
+                    file_name="merged_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            
+            with col3:
+                json_data = processor.merged_df.to_json(orient='records', indent=2)
+                st.download_button(
+                    "🔄 Download JSON",
+                    data=json_data,
+                    file_name="merged_data.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+    else:
+        st.info("👆 Please select both left and right datasets to proceed with merging")
+
+def main():
+    """Main application function"""
+    # Check authentication first
+    if not check_authentication():
+        return
+    
+    # Initialize managers
+    if 'artifact_manager' not in st.session_state:
+        st.session_state.artifact_manager = ArtifactManager()
+    
+    artifact_manager = st.session_state.artifact_manager
+    
+    # Add logout button and artifact manager in sidebar
+    with st.sidebar:
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.authenticated = False
+            st.rerun()
+        
+        st.divider()
+        
+        # Artifact manager in sidebar
+        render_artifact_manager(artifact_manager)
+    
+    # Header
+    st.markdown("""
+    <div class="main-header">
+        <h1>🔧 CSV Data Processing Suite</h1>
+        <p>Complete toolkit for CSV data cleaning, merging, and analysis</p>
+        <p style="font-size: 0.9em; opacity: 0.8;">Create artifacts in Data Cleaning, then reuse them in CSV Merger</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Initialize processor
+    if 'processor' not in st.session_state:
+        st.session_state.processor = DataProcessor(artifact_manager)
+    
+    processor = st.session_state.processor
+    
+    # Navigation tabs
+    tab1, tab2 = st.tabs(["🧹 Data Cleaning", "🔗 CSV Merger"])
+    
+    with tab1:
+        render_data_cleaning_tool(processor, artifact_manager)
+    
+    with tab2:
+        render_csv_merger_tool(processor, artifact_manager)
     
     # Footer
     st.markdown("""
     <div class="footer">
-        <p>Built with ❤️ using Streamlit | Similar to NimbleSET for CSV file merging</p>
-        <p>🔗 <strong>Features:</strong> Auto-detect keys, Multiple joins, Export formats, Real-time preview</p>
+        <p>Built with ❤️ using Streamlit | Professional CSV Data Processing Suite</p>
+        <p>🔧 <strong>Workflow:</strong> Clean Data → Save as Artifact → Use in Merger → Export Results</p>
     </div>
     """, unsafe_allow_html=True)
 
