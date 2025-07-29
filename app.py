@@ -4,6 +4,7 @@ import numpy as np
 import io
 from typing import List, Tuple, Optional, Dict, Any
 import difflib
+import hashlib
 
 # Page configuration
 st.set_page_config(
@@ -12,6 +13,52 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+def check_authentication():
+    """Check if user is authenticated"""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    
+    if not st.session_state.authenticated:
+        st.markdown("""
+        <div class="main-header">
+            <h1>🔐 Login Required</h1>
+            <p>Please enter your credentials to access the CSV Merger Tool</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form("login_form"):
+            col1, col2, col3 = st.columns([1, 2, 1])
+            
+            with col2:
+                username = st.text_input("Username", placeholder="Enter username")
+                password = st.text_input("Password", type="password", placeholder="Enter password")
+                
+                submitted = st.form_submit_button("🔓 Login", use_container_width=True, type="primary")
+                
+                if submitted:
+                    # Get password from secrets
+                    try:
+                        stored_password = st.secrets["auth"]["password"]
+                        
+                        if username == "evolutivo" and password == stored_password:
+                            st.session_state.authenticated = True
+                            st.success("✅ Login successful! Redirecting...")
+                            st.rerun()
+                        else:
+                            st.error("❌ Invalid username or password")
+                    except KeyError:
+                        st.error("❌ Authentication configuration error. Please contact administrator.")
+        
+        st.markdown("""
+        <div style="text-align: center; margin-top: 2rem; color: #666;">
+            <p>🔒 This application requires authentication to access</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        return False
+    
+    return True
 
 # Custom CSS for better styling
 st.markdown("""
@@ -238,6 +285,17 @@ def convert_df_to_excel(df):
     return output.getvalue()
 
 def main():
+    # Check authentication first
+    if not check_authentication():
+        return
+    
+    # Add logout button in sidebar
+    with st.sidebar:
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.authenticated = False
+            st.rerun()
+        st.divider()
+    
     # Header
     st.markdown("""
     <div class="main-header">
