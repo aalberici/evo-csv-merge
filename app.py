@@ -855,13 +855,13 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
             files_loaded = False
     
     else:  # Paste Text
-        st.info("📝 Paste your CSV data below. Supports comma, semicolon, tab, or pipe-separated values.")
+        st.info("📝 Paste your data below. Supports CSV (comma, semicolon, tab, pipe-separated) and Markdown table formats.")
         
         pasted_text = st.text_area(
             "Paste CSV data here:",
             height=200,
-            placeholder="name,age,city\nJohn,25,New York\nJane,30,Los Angeles\n...",
-            help="Paste CSV data with headers. The system will auto-detect the separator.",
+            placeholder="CSV: name,age,city\nJohn,25,New York\n\nMarkdown: | name | age | city |\n|------|-----|------|\n| John | 25  | NYC  |",
+            help="Paste CSV data or Markdown table with headers. The system will auto-detect the format.",
             key="cleaning_pasted_text"
         )
         
@@ -1283,11 +1283,11 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             else:
                 st.info("No artifacts available. Create some in the Data Cleaning tool first!")
         else:  # Paste Text
-            st.info("📝 Paste your LEFT dataset CSV data below")
+            st.info("📝 Paste your LEFT dataset (CSV or Markdown table format)")
             left_pasted_text = st.text_area(
                 "Paste LEFT CSV data:",
                 height=150,
-                placeholder="id,name,value\n1,Item A,100\n2,Item B,200\n...",
+                placeholder="CSV: id,name,value\n1,Item A,100\n\nMarkdown: | id | name | value |\n|----|----- |-------|",
                 key="left_pasted_text"
             )
             
@@ -1335,11 +1335,11 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             else:
                 st.info("No artifacts available. Create some in the Data Cleaning tool first!")
         else:  # Paste Text
-            st.info("📝 Paste your RIGHT dataset CSV data below")
+            st.info("📝 Paste your RIGHT dataset (CSV or Markdown table format)")
             right_pasted_text = st.text_area(
                 "Paste RIGHT CSV data:",
                 height=150,
-                placeholder="id,description,category\n1,Product A,Electronics\n2,Product B,Books\n...",
+                placeholder="CSV: id,description,category\n1,Product A,Electronics\n\nMarkdown: | id | description | category |",
                 key="right_pasted_text"
             )
             
