@@ -304,30 +304,68 @@ class DataProcessor:
                 st.error("No data provided")
                 return False
             
-            # Try to parse as CSV
             from io import StringIO
-            csv_buffer = StringIO(text_data.strip())
+            text_data = text_data.strip()
             
-            # Try different separators
-            separators = [',', ';', '\t', '|']
-            df = None
-            
-            for sep in separators:
-                try:
-                    csv_buffer.seek(0)
-                    df = pd.read_csv(csv_buffer, sep=sep)
-                    # Check if we got reasonable columns (more than 1 column or reasonable data)
-                    if len(df.columns) > 1 or (len(df.columns) == 1 and len(df) > 0):
-                        break
-                except:
-                    continue
-            
-            if df is None or df.empty:
-                st.error("Could not parse the pasted data as CSV. Please check the format.")
-                return False
+            # Check if it's markdown table format
+            if self._is_markdown_table(text_data):
+                df = self._parse_markdown_table(text_data)
+                if df is not None:
+                    st.info("✅ Detected and parsed markdown table format")
+                else:
+                    st.error("Failed to parse markdown table format")
+                    return False
+            else:
+                # Try different CSV separators with better detection
+                separators = [
+                    (',', 'comma'),
+                    (';', 'semicolon'), 
+                    ('\t', 'tab'),
+                    ('|', 'pipe')
+                ]
+                
+                df = None
+                detected_sep = None
+                
+                for sep, sep_name in separators:
+                    try:
+                        csv_buffer = StringIO(text_data)
+                        test_df = pd.read_csv(csv_buffer, sep=sep, nrows=5)  # Test with first 5 rows
+                        
+                        # Better validation: check if we have multiple columns AND reasonable data
+                        if (len(test_df.columns) > 1 and 
+                            not test_df.empty and 
+                            not all(col.startswith('Unnamed:') for col in test_df.columns)):
+                            
+                            # Parse the full data
+                            csv_buffer = StringIO(text_data)
+                            df = pd.read_csv(csv_buffer, sep=sep)
+                            detected_sep = sep_name
+                            break
+                            
+                    except Exception as e:
+                        continue
+                
+                if df is None:
+                    # Fallback: try comma separator with more lenient parsing
+                    try:
+                        csv_buffer = StringIO(text_data)
+                        df = pd.read_csv(csv_buffer, sep=',', skipinitialspace=True)
+                        detected_sep = 'comma (fallback)'
+                    except:
+                        pass
+                
+                if df is None or df.empty:
+                    st.error("Could not parse the pasted data. Supported formats: CSV (comma, semicolon, tab, pipe separated) and Markdown tables.")
+                    return False
+                
+                st.info(f"✅ Detected {detected_sep}-separated format")
             
             # Clean column names
             df.columns = df.columns.str.strip()
+            
+            # Remove any completely empty columns that might have been created
+            df = df.dropna(axis=1, how='all')
             
             # Ensure we have enough space in the dataframes list
             if position >= len(self.dataframes):
@@ -342,6 +380,73 @@ class DataProcessor:
         except Exception as e:
             st.error(f"Error parsing pasted data: {str(e)}")
             return False
+    
+    def _is_markdown_table(self, text: str) -> bool:
+        """Check if text appears to be a markdown table"""
+        lines = text.strip().split('\n')
+        if len(lines) < 2:
+            return False
+        
+        # Look for markdown table pattern: header row followed by separator row
+        first_line = lines[0].strip()
+        second_line = lines[1].strip() if len(lines) > 1 else ""
+        
+        # Check if first line has pipes and second line has dashes/pipes
+        has_pipes_first = '|' in first_line
+        has_separator_second = bool(second_line and 
+                                  '|' in second_line and 
+                                  ('-' in second_line or ':' in second_line))
+        
+        return has_pipes_first and has_separator_second
+    
+    def _parse_markdown_table(self, text: str) -> pd.DataFrame:
+        """Parse markdown table format"""
+        try:
+            lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
+            
+            if len(lines) < 2:
+                return None
+            
+            # Extract header row (first line)
+            header_line = lines[0]
+            if header_line.startswith('|'):
+                header_line = header_line[1:]
+            if header_line.endswith('|'):
+                header_line = header_line[:-1]
+            
+            headers = [col.strip() for col in header_line.split('|')]
+            
+            # Skip separator row (second line) and process data rows
+            data_rows = []
+            for line in lines[2:]:  # Skip header and separator
+                if not line:
+                    continue
+                    
+                # Remove leading/trailing pipes
+                if line.startswith('|'):
+                    line = line[1:]
+                if line.endswith('|'):
+                    line = line[:-1]
+                
+                row_data = [cell.strip() for cell in line.split('|')]
+                
+                # Pad or truncate row to match header length
+                while len(row_data) < len(headers):
+                    row_data.append('')
+                row_data = row_data[:len(headers)]
+                
+                data_rows.append(row_data)
+            
+            if not data_rows:
+                return None
+            
+            # Create DataFrame
+            df = pd.DataFrame(data_rows, columns=headers)
+            return df
+            
+        except Exception as e:
+            st.error(f"Error parsing markdown table: {str(e)}")
+            return None
     
     def get_column_names(self, df_index: int = 0) -> List[str]:
         """Get column names for specified dataframe"""
