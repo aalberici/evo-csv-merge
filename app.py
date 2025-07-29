@@ -744,9 +744,39 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 else:
                     case_type = "lower"
 
-            # NEW: Add New Columns section (before cleaning)
+            # NEW: Column Management section (first step - select columns to keep)
+            with st.expander("🛠️ Column Management", expanded=False):
+                # Recalculate columns every time to include newly added columns
+                current_columns_for_selection = []
+                # Determine columns available for selection based on merge preference
+                if merge_files and len(processor.dataframes) > 1:
+                    # Calculate the union of columns across all dataframes if merging is active
+                    all_cols_set = set()
+                    for df in processor.dataframes:
+                        if df is not None:
+                            all_cols_set.update(df.columns)
+                    current_columns_for_selection = sorted(list(all_cols_set))
+                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                    # Use columns from the first dataframe if no merge
+                    current_columns_for_selection = list(processor.dataframes[0].columns)
+
+                columns_to_keep = []
+                if current_columns_for_selection:
+                    st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
+                    
+                    columns_to_keep = st.multiselect(
+                        "Select columns to keep:",
+                        options=current_columns_for_selection,
+                        default=current_columns_for_selection,  # Always default to all columns
+                        key="cols_to_keep_clean"
+                    )
+                else:
+                    st.warning("No columns to display. Please upload files first.")
+                    columns_to_keep = [] # Ensure it's an empty list if no columns
+
+            # NEW: Add New Columns section (after column selection, before cleaning)
             with st.expander("➕ Add New Columns", expanded=False):
-                st.info("Add new columns to your data before cleaning. These will be applied to the source data.")
+                st.info("Add new columns to your data. These will be included in the final cleaned dataset.")
                 
                 # Get the working dataframe for adding columns
                 working_df = None
@@ -792,7 +822,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         else:
                             st.warning("No numeric columns available for increment operation.")
 
-                    if st.button("➕ Add Column to Source Data", type="secondary", use_container_width=True, key="add_new_column_pre_clean"):
+                    if st.button("➕ Add Column", type="secondary", use_container_width=True, key="add_new_column_pre_clean"):
                         if new_col_name.strip():
                             # Add column to all relevant dataframes
                             if merge_files and len(processor.dataframes) > 1:
@@ -806,56 +836,18 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                     processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
                                 )
                             
-                            # Force refresh by clearing all related session state keys
-                            keys_to_clear = [key for key in st.session_state.keys() if key.startswith('cols_to_keep')]
-                            for key in keys_to_clear:
-                                del st.session_state[key]
+                            # Add the new column to the selected columns list
+                            current_selection = st.session_state.get("cols_to_keep_clean", [])
+                            if new_col_name.strip() not in current_selection:
+                                current_selection.append(new_col_name.strip())
+                                st.session_state["cols_to_keep_clean"] = current_selection
                             
-                            # Also clear any cached column data
-                            if 'current_columns_cache' in st.session_state:
-                                del st.session_state['current_columns_cache']
-                            
-                            st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
+                            st.success(f"✅ Column '{new_col_name.strip()}' added and selected for cleaning!")
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
                 else:
                     st.warning("No data available. Please upload files first.")
-
-            # NEW: Column Management section (after adding columns so it includes new columns)
-            with st.expander("🛠️ Column Management", expanded=False):
-                # Recalculate columns every time to include newly added columns
-                current_columns_for_selection = []
-                # Determine columns available for selection based on merge preference
-                if merge_files and len(processor.dataframes) > 1:
-                    # Calculate the union of columns across all dataframes if merging is active
-                    all_cols_set = set()
-                    for df in processor.dataframes:
-                        if df is not None:
-                            all_cols_set.update(df.columns)
-                    current_columns_for_selection = sorted(list(all_cols_set))
-                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
-                    # Use columns from the first dataframe if no merge
-                    current_columns_for_selection = list(processor.dataframes[0].columns)
-
-                columns_to_keep = []
-                if current_columns_for_selection:
-                    st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
-                    
-                    # Create a unique key based on the current columns to force refresh when columns change
-                    columns_hash = hash(tuple(sorted(current_columns_for_selection)))
-                    multiselect_key = f"cols_to_keep_clean_{columns_hash}"
-                    
-                    # Always default to all columns when the column set changes
-                    columns_to_keep = st.multiselect(
-                        "Select columns to keep:",
-                        options=current_columns_for_selection,
-                        default=current_columns_for_selection,  # Always default to all columns
-                        key=multiselect_key
-                    )
-                else:
-                    st.warning("No columns to display. Please upload files first.")
-                    columns_to_keep = [] # Ensure it's an empty list if no columns
             
             # Preview original data
             show_original = st.checkbox("Show original data", value=True)
