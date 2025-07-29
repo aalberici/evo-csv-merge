@@ -567,34 +567,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 else:
                     case_type = "lower"
 
-            # NEW: Column Management section
-            with st.expander("🛠️ Column Management", expanded=False):
-                current_columns_for_selection = []
-                # Determine columns available for selection based on merge preference
-                if merge_files and len(processor.dataframes) > 1:
-                    # Calculate the union of columns across all dataframes if merging is active
-                    all_cols_set = set()
-                    for df in processor.dataframes:
-                        if df is not None:
-                            all_cols_set.update(df.columns)
-                    current_columns_for_selection = sorted(list(all_cols_set))
-                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
-                    # Use columns from the first dataframe if no merge
-                    current_columns_for_selection = list(processor.dataframes[0].columns)
-
-                columns_to_keep = []
-                if current_columns_for_selection:
-                    st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
-                    columns_to_keep = st.multiselect(
-                        "Select columns to keep:",
-                        options=current_columns_for_selection,
-                        default=current_columns_for_selection, # All selected by default
-                        key="cols_to_keep_clean"
-                    )
-                else:
-                    st.warning("No columns to display. Please upload files first.")
-                    columns_to_keep = [] # Ensure it's an empty list if no columns
-
             # NEW: Add New Columns section (before cleaning)
             with st.expander("➕ Add New Columns", expanded=False):
                 st.info("Add new columns to your data before cleaning. These will be applied to the source data.")
@@ -661,6 +633,34 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                             st.error("Please enter a name for the new column.")
                 else:
                     st.warning("No data available. Please upload files first.")
+
+            # NEW: Column Management section (after adding columns so it includes new columns)
+            with st.expander("🛠️ Column Management", expanded=False):
+                current_columns_for_selection = []
+                # Determine columns available for selection based on merge preference
+                if merge_files and len(processor.dataframes) > 1:
+                    # Calculate the union of columns across all dataframes if merging is active
+                    all_cols_set = set()
+                    for df in processor.dataframes:
+                        if df is not None:
+                            all_cols_set.update(df.columns)
+                    current_columns_for_selection = sorted(list(all_cols_set))
+                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                    # Use columns from the first dataframe if no merge
+                    current_columns_for_selection = list(processor.dataframes[0].columns)
+
+                columns_to_keep = []
+                if current_columns_for_selection:
+                    st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
+                    columns_to_keep = st.multiselect(
+                        "Select columns to keep:",
+                        options=current_columns_for_selection,
+                        default=current_columns_for_selection, # All selected by default
+                        key="cols_to_keep_clean"
+                    )
+                else:
+                    st.warning("No columns to display. Please upload files first.")
+                    columns_to_keep = [] # Ensure it's an empty list if no columns
             
             # Preview original data
             show_original = st.checkbox("Show original data", value=True)
