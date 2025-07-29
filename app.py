@@ -423,8 +423,29 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
             
             with col2:
                 if st.button("👁️ View", key=f"view_{artifact_name}", use_container_width=True):
-                    with st.expander(f"Preview: {artifact_name}", expanded=True):
-                        st.dataframe(artifact.dataframe.head(10), use_container_width=True)
+                    st.session_state[f"show_popup_{artifact_name}"] = True
+                
+                # Show popup dialog if triggered
+                if st.session_state.get(f"show_popup_{artifact_name}", False):
+                    @st.dialog(f"📊 Preview: {artifact_name}")
+                    def show_artifact_preview():
+                        st.markdown(f"""
+                        **Dataset Information:**
+                        - **Rows:** {artifact.rows:,}
+                        - **Columns:** {artifact.columns}
+                        - **Size:** {artifact.memory_mb:.1f} MB
+                        - **Source:** {artifact.source}
+                        - **Created:** {artifact.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+                        """)
+                        
+                        st.markdown("**Data Preview (first 20 rows):**")
+                        st.dataframe(artifact.dataframe.head(20), use_container_width=True)
+                        
+                        if st.button("Close", type="primary", use_container_width=True):
+                            st.session_state[f"show_popup_{artifact_name}"] = False
+                            st.rerun()
+                    
+                    show_artifact_preview()
             
             with col3:
                 if st.button("🗑️ Delete", key=f"delete_{artifact_name}", use_container_width=True):
