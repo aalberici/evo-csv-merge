@@ -1266,7 +1266,6 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         <i data-lucide="trash-2"></i>
                     </button>
                 </div>
-                <script>lucide.createIcons();</script>
                 """, unsafe_allow_html=True)
                 
                 # Hidden Streamlit buttons for functionality
@@ -1322,7 +1321,6 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                             <button class="icon-button primary" onclick="document.getElementById('save_rename').click()" style="width: 100%;">
                                 <i data-lucide="check"></i> Save
                             </button>
-                            <script>lucide.createIcons();</script>
                             """, unsafe_allow_html=True)
                             if st.button("", key="save_rename"):
                                 if new_name.strip() and new_name.strip() != artifact_name:
@@ -1350,7 +1348,6 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                             <button class="icon-button" onclick="document.getElementById('cancel_rename').click()" style="width: 100%;">
                                 <i data-lucide="x"></i> Cancel
                             </button>
-                            <script>lucide.createIcons();</script>
                             """, unsafe_allow_html=True)
                             if st.button("", key="cancel_rename"):
                                 st.session_state[f"rename_mode_{artifact_name}"] = False
@@ -1382,7 +1379,6 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         <button class="icon-button primary" onclick="document.getElementById('close_preview').click()" style="width: 100%;">
                             <i data-lucide="x"></i> Close
                         </button>
-                        <script>lucide.createIcons();</script>
                         """, unsafe_allow_html=True)
                         if st.button("", key="close_preview"):
                             st.session_state[f"show_popup_{artifact_name}"] = False
@@ -1853,7 +1849,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
                         <span>CSV Format</span>
                     </div>
-                    <script>lucide.createIcons();</script>
                     """, unsafe_allow_html=True)
                     st.download_button(
                         "Download CSV",
@@ -1870,7 +1865,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
                         <span>Excel Format</span>
                     </div>
-                    <script>lucide.createIcons();</script>
                     """, unsafe_allow_html=True)
                     st.download_button(
                         "Download Excel",
@@ -1887,7 +1881,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         <i data-lucide="braces" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
                         <span>JSON Format</span>
                     </div>
-                    <script>lucide.createIcons();</script>
                     """, unsafe_allow_html=True)
                     st.download_button(
                         "Download JSON",
@@ -2119,7 +2112,6 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                     <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
                     <span>CSV Format</span>
                 </div>
-                <script>lucide.createIcons();</script>
                 """, unsafe_allow_html=True)
                 st.download_button(
                     "Download CSV",
@@ -2136,7 +2128,6 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                     <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
                     <span>Excel Format</span>
                 </div>
-                <script>lucide.createIcons();</script>
                 """, unsafe_allow_html=True)
                 st.download_button(
                     "Download Excel",
@@ -2153,7 +2144,6 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
                     <i data-lucide="braces" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
                     <span>JSON Format</span>
                 </div>
-                <script>lucide.createIcons();</script>
                 """, unsafe_allow_html=True)
                 st.download_button(
                     "Download JSON",
@@ -2217,6 +2207,32 @@ def main():
         <p>Built with Streamlit | Professional CSV Data Processing Suite</p>
         <p><strong>Workflow:</strong> Clean Data → Save as Artifact → Use in Merger → Export Results</p>
     </div>
+    """, unsafe_allow_html=True)
+    
+    # Initialize all Lucide icons after page load
+    st.markdown("""
+    <script>
+        // Wait for DOM to be fully loaded, then initialize icons
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+        
+        // Also try to initialize icons immediately in case DOM is already loaded
+        setTimeout(function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+        
+        // Initialize icons when Streamlit reruns
+        window.addEventListener('load', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+    </script>
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
