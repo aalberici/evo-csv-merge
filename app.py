@@ -433,23 +433,31 @@ class DataProcessor:
             if self.cleaned_df is not None:
                 # Apply column keeping/removal *before* other operations, as it affects columns
                 columns_to_keep = options.get('columns_to_keep')
-                if columns_to_keep is not None:
-                    if len(columns_to_keep) > 0:
-                        # Ensure all columns to keep actually exist in the DataFrame
-                        existing_cols = self.cleaned_df.columns.tolist()
-                        cols_to_select = [col for col in columns_to_keep if col in existing_cols]
-                        if cols_to_select:  # Only filter if we have valid columns to keep
-                            original_col_count = len(self.cleaned_df.columns)
-                            self.cleaned_df = self.cleaned_df[cols_to_select]
-                            removed_count = original_col_count - len(cols_to_select)
-                            st.info(f"✅ Kept {len(cols_to_select)} selected columns, removed {removed_count} columns")
-                            st.info(f"Kept columns: {', '.join(cols_to_select)}")
-                        # Warn if some selected columns were not found
-                        removed_missing_cols = set(columns_to_keep) - set(cols_to_select)
-                        if removed_missing_cols:
-                            st.warning(f"Columns not found in the dataset: {', '.join(removed_missing_cols)}")
+                if columns_to_keep is not None and len(columns_to_keep) > 0:
+                    # Ensure all columns to keep actually exist in the DataFrame
+                    existing_cols = self.cleaned_df.columns.tolist()
+                    cols_to_select = [col for col in columns_to_keep if col in existing_cols]
+                    
+                    if cols_to_select:  # Only filter if we have valid columns to keep
+                        original_col_count = len(self.cleaned_df.columns)
+                        self.cleaned_df = self.cleaned_df[cols_to_select]
+                        removed_count = original_col_count - len(cols_to_select)
+                        st.success(f"✅ Column filtering applied: Kept {len(cols_to_select)} columns, removed {removed_count} columns")
+                        
+                        # Show which columns were kept and removed
+                        removed_cols = set(existing_cols) - set(cols_to_select)
+                        if removed_cols:
+                            st.info(f"🗑️ Removed columns: {', '.join(sorted(removed_cols))}")
+                        st.info(f"✅ Kept columns: {', '.join(cols_to_select)}")
                     else:
-                        st.warning("⚠️ No columns selected to keep. All columns will be retained.")
+                        st.warning("⚠️ None of the selected columns exist in the dataset. All columns retained.")
+                    
+                    # Warn if some selected columns were not found
+                    missing_cols = set(columns_to_keep) - set(existing_cols)
+                    if missing_cols:
+                        st.warning(f"⚠️ Selected columns not found in dataset: {', '.join(sorted(missing_cols))}")
+                else:
+                    st.info("ℹ️ No column filtering applied - all columns retained.")
 
                 # Apply other cleaning operations
                 if options.get('remove_duplicates', False):
@@ -764,20 +772,20 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
                     
-                    # Handle newly added columns
-                    default_selection = current_columns_for_selection.copy()
-                    
-                    # If there are new columns to add, include them in the default selection
+                    # Handle newly added columns while preserving user's previous selection
                     if 'new_columns_to_add' in st.session_state:
-                        # Get current selection if it exists
-                        current_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
-                        # Add new columns to the selection
+                        # Get current selection if it exists, otherwise start with empty list
+                        current_selection = st.session_state.get("cols_to_keep_clean", [])
+                        # Add new columns to the existing selection
                         for new_col in st.session_state['new_columns_to_add']:
                             if new_col in current_columns_for_selection and new_col not in current_selection:
                                 current_selection.append(new_col)
                         default_selection = current_selection
                         # Clear the new columns list
                         del st.session_state['new_columns_to_add']
+                    else:
+                        # Use existing selection or default to all columns only on first load
+                        default_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
                     
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
@@ -808,7 +816,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     working_df = processor.dataframes[0].copy()
                 
                 if working_df is not None:
-                    new_col_name = st.text_input("New Column Name:", key="new_col_name_pre_clean")
+                    counter = st.session_state.get('add_column_counter', 0)
+                    new_col_name = st.text_input("New Column Name:", key=f"new_col_name_pre_clean_{counter}")
                     col_type = st.selectbox(
                         "Select Column Value Type:",
                         ["Autonumber", "Fixed Value", "Random Integer", "Random Float", "UUID7", "Increment Existing"],
@@ -856,12 +865,46 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                 st.session_state['new_columns_to_add'] = []
                             st.session_state['new_columns_to_add'].append(new_col_name.strip())
                             
+                            # Clear the text input by updating its key
+                            if 'add_column_counter' not in st.session_state:
+                                st.session_state['add_column_counter'] = 0
+                            st.session_state['add_column_counter'] += 1
+                            
                             st.success(f"✅ Column '{new_col_name.strip()}' added and will be selected for cleaning!")
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
                 else:
                     st.warning("No data available. Please upload files first.")
+
+            # NEW: Column Selection Preview Panel
+            if current_columns_for_selection:
+                with st.expander("👁️ Current Column Selection Preview", expanded=True):
+                    selected_cols = st.session_state.get("cols_to_keep_clean", [])
+                    
+                    if selected_cols:
+                        st.success(f"✅ **{len(selected_cols)} columns selected** for cleaning:")
+                        
+                        # Show selected columns in a nice format
+                        cols_per_row = 4
+                        for i in range(0, len(selected_cols), cols_per_row):
+                            row_cols = selected_cols[i:i+cols_per_row]
+                            col_containers = st.columns(len(row_cols))
+                            for j, col_name in enumerate(row_cols):
+                                with col_containers[j]:
+                                    st.markdown(f"🔹 `{col_name}`")
+                        
+                        # Show what will be removed
+                        all_available = set(current_columns_for_selection)
+                        selected_set = set(selected_cols)
+                        removed_cols = all_available - selected_set
+                        
+                        if removed_cols:
+                            st.warning(f"⚠️ **{len(removed_cols)} columns will be removed:** {', '.join(sorted(removed_cols))}")
+                        else:
+                            st.info("ℹ️ All available columns are selected")
+                    else:
+                        st.error("❌ **No columns selected!** All columns will be retained.")
             
             # Preview original data
             show_original = st.checkbox("Show original data", value=True)
