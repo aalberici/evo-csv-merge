@@ -1128,17 +1128,14 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
     # Header with modern styling
     st.markdown("""
     <div style="background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%); 
-                padding: 1.5rem; border-radius: var(--radius-xl); margin-bottom: 1.5rem; 
-                box-shadow: var(--shadow-lg); position: relative; overflow: hidden;">
+                padding: 1rem; border-radius: var(--radius-lg); margin-bottom: 1rem; 
+                box-shadow: var(--shadow-md); position: relative; overflow: hidden;">
         <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
                     background: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E'); 
                     opacity: 0.3;"></div>
-        <h4 style="color: white; margin: 0; font-size: 1.25rem; font-weight: 600; position: relative; z-index: 1;">
+        <h4 style="color: white; margin: 0; font-size: 1rem; font-weight: 600; position: relative; z-index: 1;">
             Data Artifacts
         </h4>
-        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 0.875rem; position: relative; z-index: 1;">
-            Persistent datasets ready for processing
-        </p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2055,10 +2052,9 @@ def main():
     
     # Header
     st.markdown("""
-    <div class="main-header fade-in">
-        <h1>CSV Data Processing Suite</h1>
-        <p>Complete toolkit for CSV data cleaning, merging, and analysis</p>
-        <p style="font-size: 1rem; opacity: 0.9; margin-top: 0.5rem;">Create artifacts in Data Cleaning, then reuse them in CSV Merger</p>
+    <div class="main-header fade-in" style="padding: 1.5rem 2rem;">
+        <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem;">CSV Data Processing Suite</h1>
+        <p style="font-size: 0.875rem; margin-bottom: 0;">Complete toolkit for CSV data cleaning, merging, and analysis</p>
     </div>
     """, unsafe_allow_html=True)
     
