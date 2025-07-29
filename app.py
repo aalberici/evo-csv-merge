@@ -1251,40 +1251,22 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                 """, unsafe_allow_html=True)
                 
                 # Action buttons in a compact row
-                st.markdown(f"""
-                <div style="display: flex; gap: 0.5rem; margin: 1rem 0; justify-content: flex-start;">
-                    <button class="icon-button" onclick="document.getElementById('view_{artifact_name}').click()" title="Preview data">
-                        <i data-lucide="eye"></i>
-                    </button>
-                    <button class="icon-button" onclick="document.getElementById('rename_{artifact_name}').click()" title="Rename artifact">
-                        <i data-lucide="edit-3"></i>
-                    </button>
-                    <button class="icon-button" onclick="document.getElementById('copy_{artifact_name}').click()" title="Duplicate artifact">
-                        <i data-lucide="copy"></i>
-                    </button>
-                    <button class="icon-button danger" onclick="document.getElementById('delete_{artifact_name}').click()" title="Delete artifact">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Hidden Streamlit buttons for functionality
                 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
                 
                 with col1:
-                    if st.button("", key=f"view_{artifact_name}", 
-                               help="Preview data"):
+                    if st.button("👁️", key=f"view_{artifact_name}", 
+                               help="Preview data", use_container_width=True):
                         st.session_state[f"show_popup_{artifact_name}"] = True
                 
                 with col2:
-                    if st.button("", key=f"rename_{artifact_name}", 
-                               help="Rename artifact"):
+                    if st.button("✏️", key=f"rename_{artifact_name}", 
+                               help="Rename artifact", use_container_width=True):
                         st.session_state[f"rename_mode_{artifact_name}"] = True
                         st.rerun()
                 
                 with col3:
-                    if st.button("", key=f"copy_{artifact_name}", 
-                               help="Duplicate artifact"):
+                    if st.button("📋", key=f"copy_{artifact_name}", 
+                               help="Duplicate artifact", use_container_width=True):
                         # Create a copy with timestamp
                         new_name = f"{artifact_name}_copy_{datetime.now().strftime('%H%M%S')}"
                         new_artifact = DataArtifact(
@@ -1297,8 +1279,8 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                             st.rerun()
                 
                 with col4:
-                    if st.button("", key=f"delete_{artifact_name}", 
-                               help="Delete artifact"):
+                    if st.button("🗑️", key=f"delete_{artifact_name}", 
+                               help="Delete artifact", use_container_width=True):
                         if st.session_state.get(f'confirm_delete_{artifact_name}', False):
                             if artifact_manager.delete_artifact(artifact_name):
                                 st.success(f"✅ Deleted")
@@ -1317,12 +1299,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.markdown("""
-                            <button class="icon-button primary" onclick="document.getElementById('save_rename').click()" style="width: 100%;">
-                                <i data-lucide="check"></i> Save
-                            </button>
-                            """, unsafe_allow_html=True)
-                            if st.button("", key="save_rename"):
+                            if st.button("✅ Save", key="save_rename", type="primary", use_container_width=True):
                                 if new_name.strip() and new_name.strip() != artifact_name:
                                     if new_name.strip() not in artifact_manager.list_artifacts():
                                         # Create new artifact with new name
@@ -1344,12 +1321,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                                     st.error("❌ Enter a valid new name")
                         
                         with col2:
-                            st.markdown("""
-                            <button class="icon-button" onclick="document.getElementById('cancel_rename').click()" style="width: 100%;">
-                                <i data-lucide="x"></i> Cancel
-                            </button>
-                            """, unsafe_allow_html=True)
-                            if st.button("", key="cancel_rename"):
+                            if st.button("❌ Cancel", key="cancel_rename", use_container_width=True):
                                 st.session_state[f"rename_mode_{artifact_name}"] = False
                                 st.rerun()
                     
@@ -1375,12 +1347,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                         st.markdown("**Data Preview:**")
                         st.dataframe(artifact.dataframe.head(20), use_container_width=True)
                         
-                        st.markdown("""
-                        <button class="icon-button primary" onclick="document.getElementById('close_preview').click()" style="width: 100%;">
-                            <i data-lucide="x"></i> Close
-                        </button>
-                        """, unsafe_allow_html=True)
-                        if st.button("", key="close_preview"):
+                        if st.button("✅ Close", key="close_preview", type="primary", use_container_width=True):
                             st.session_state[f"show_popup_{artifact_name}"] = False
                             st.rerun()
                     
@@ -1844,14 +1811,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 
                 with col1:
                     csv_data = convert_df_to_csv(processor.cleaned_df)
-                    st.markdown("""
-                    <div style="margin-bottom: 0.5rem;">
-                        <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                        <span>CSV Format</span>
-                    </div>
-                    """, unsafe_allow_html=True)
                     st.download_button(
-                        "Download CSV",
+                        "📄 Download CSV",
                         data=csv_data,
                         file_name="cleaned_data.csv",
                         mime="text/csv",
@@ -1860,14 +1821,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 
                 with col2:
                     excel_data = convert_df_to_excel(processor.cleaned_df)
-                    st.markdown("""
-                    <div style="margin-bottom: 0.5rem;">
-                        <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                        <span>Excel Format</span>
-                    </div>
-                    """, unsafe_allow_html=True)
                     st.download_button(
-                        "Download Excel",
+                        "📊 Download Excel",
                         data=excel_data,
                         file_name="cleaned_data.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1876,14 +1831,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 
                 with col3:
                     json_data = processor.cleaned_df.to_json(orient='records', indent=2)
-                    st.markdown("""
-                    <div style="margin-bottom: 0.5rem;">
-                        <i data-lucide="braces" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                        <span>JSON Format</span>
-                    </div>
-                    """, unsafe_allow_html=True)
                     st.download_button(
-                        "Download JSON",
+                        "🔗 Download JSON",
                         data=json_data,
                         file_name="cleaned_data.json",
                         mime="application/json",
@@ -2107,14 +2056,8 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             
             with col1:
                 csv_data = convert_df_to_csv(processor.merged_df)
-                st.markdown("""
-                <div style="margin-bottom: 0.5rem;">
-                    <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                    <span>CSV Format</span>
-                </div>
-                """, unsafe_allow_html=True)
                 st.download_button(
-                    "Download CSV",
+                    "📄 Download CSV",
                     data=csv_data,
                     file_name="merged_data.csv",
                     mime="text/csv",
@@ -2123,14 +2066,8 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             
             with col2:
                 excel_data = convert_df_to_excel(processor.merged_df)
-                st.markdown("""
-                <div style="margin-bottom: 0.5rem;">
-                    <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                    <span>Excel Format</span>
-                </div>
-                """, unsafe_allow_html=True)
                 st.download_button(
-                    "Download Excel",
+                    "📊 Download Excel",
                     data=excel_data,
                     file_name="merged_data.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2139,14 +2076,8 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             
             with col3:
                 json_data = processor.merged_df.to_json(orient='records', indent=2)
-                st.markdown("""
-                <div style="margin-bottom: 0.5rem;">
-                    <i data-lucide="braces" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                    <span>JSON Format</span>
-                </div>
-                """, unsafe_allow_html=True)
                 st.download_button(
-                    "Download JSON",
+                    "🔗 Download JSON",
                     data=json_data,
                     file_name="merged_data.json",
                     mime="application/json",
@@ -2209,31 +2140,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize all Lucide icons after page load
-    st.markdown("""
-    <script>
-        // Wait for DOM to be fully loaded, then initialize icons
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        });
-        
-        // Also try to initialize icons immediately in case DOM is already loaded
-        setTimeout(function() {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }, 100);
-        
-        // Initialize icons when Streamlit reruns
-        window.addEventListener('load', function() {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        });
-    </script>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
