@@ -853,12 +853,18 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         for new_col in st.session_state['new_columns_to_add']:
                             if new_col in current_columns_for_selection and new_col not in current_selection:
                                 current_selection.append(new_col)
-                        default_selection = current_selection
+                        # Filter to only include columns that exist in current dataset
+                        default_selection = [col for col in current_selection if col in current_columns_for_selection]
                         # Clear the new columns list
                         del st.session_state['new_columns_to_add']
                     else:
                         # Use existing selection or default to all columns only on first load
-                        default_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
+                        existing_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
+                        # Filter to only include columns that exist in current dataset
+                        default_selection = [col for col in existing_selection if col in current_columns_for_selection]
+                        # If no valid columns from previous selection, default to all current columns
+                        if not default_selection and current_columns_for_selection:
+                            default_selection = current_columns_for_selection
                     
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
