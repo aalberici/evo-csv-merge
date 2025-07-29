@@ -766,9 +766,13 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                     processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
                                 )
                             
-                            st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
-                            # Set flag to force column selection refresh
-                            st.session_state["force_column_refresh"] = True
+                            # Update the column selection to include the new column
+                            current_selection = st.session_state.get("cols_to_keep_clean", [])
+                            if new_col_name.strip() not in current_selection:
+                                current_selection.append(new_col_name.strip())
+                                st.session_state["cols_to_keep_clean"] = current_selection
+                            
+                            st.success(f"✅ Column '{new_col_name.strip()}' added to source data and selected!")
                             st.rerun()
                         else:
                             st.error("Please enter a name for the new column.")
@@ -795,12 +799,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
                     
-                    # Force refresh of column selection when new columns are added
-                    if "force_column_refresh" in st.session_state:
-                        if "cols_to_keep_clean" in st.session_state:
-                            del st.session_state["cols_to_keep_clean"]
-                        del st.session_state["force_column_refresh"]
-                    
                     # Get current selection or default to all columns
                     current_selection = st.session_state.get("cols_to_keep_clean", current_columns_for_selection)
                     
@@ -811,7 +809,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     new_columns = [col for col in current_columns_for_selection if col not in valid_selection]
                     if new_columns:
                         valid_selection.extend(new_columns)
-                        st.info(f"🆕 New columns detected and auto-selected: {', '.join(new_columns)}")
+                        # Update session state with the new selection
+                        st.session_state["cols_to_keep_clean"] = valid_selection
                     
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
