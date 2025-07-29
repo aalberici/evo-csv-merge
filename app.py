@@ -903,6 +903,19 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 else:
                     case_type = "lower"
 
+            # Calculate columns available for selection based on merge preference
+            current_columns_for_selection = []
+            if merge_files and len(processor.dataframes) > 1:
+                # Calculate the union of columns across all dataframes if merging is active
+                all_cols_set = set()
+                for df in processor.dataframes:
+                    if df is not None:
+                        all_cols_set.update(df.columns)
+                current_columns_for_selection = sorted(list(all_cols_set))
+            elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                # Use columns from the first dataframe if no merge
+                current_columns_for_selection = list(processor.dataframes[0].columns)
+
             # NEW: Column Renaming section (before column management)
             with st.expander("✏️ Column Renaming", expanded=False):
                 st.info("Rename columns to improve data quality and consistency.")
@@ -974,19 +987,6 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
 
             # NEW: Column Management section (first step - select columns to keep)
             with st.expander("🛠️ Column Management", expanded=False):
-                # Recalculate columns every time to include newly added columns
-                current_columns_for_selection = []
-                # Determine columns available for selection based on merge preference
-                if merge_files and len(processor.dataframes) > 1:
-                    # Calculate the union of columns across all dataframes if merging is active
-                    all_cols_set = set()
-                    for df in processor.dataframes:
-                        if df is not None:
-                            all_cols_set.update(df.columns)
-                    current_columns_for_selection = sorted(list(all_cols_set))
-                elif len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
-                    # Use columns from the first dataframe if no merge
-                    current_columns_for_selection = list(processor.dataframes[0].columns)
 
                 columns_to_keep = []
                 if current_columns_for_selection:
