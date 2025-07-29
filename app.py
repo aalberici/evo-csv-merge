@@ -6,6 +6,8 @@ from typing import List, Tuple, Optional, Dict, Any
 import difflib
 import base64
 from datetime import datetime
+import pickle
+import os
 
 # Page configuration
 st.set_page_config(
@@ -143,17 +145,47 @@ class DataArtifact:
         return f"{self.name} | {self.rows:,} rows × {self.columns} cols | {self.memory_mb:.1f}MB | {self.source}"
 
 class ArtifactManager:
-    """Manages data artifacts across the application"""
+    """Manages data artifacts across the application with persistent storage"""
     
     def __init__(self):
-        if 'artifacts' not in st.session_state:
+        self.artifacts_dir = "artifacts"
+        self.artifacts_file = os.path.join(self.artifacts_dir, "artifacts.pkl")
+        
+        # Create artifacts directory if it doesn't exist
+        if not os.path.exists(self.artifacts_dir):
+            os.makedirs(self.artifacts_dir)
+        
+        # Load artifacts from disk
+        self._load_artifacts()
+    
+    def _load_artifacts(self):
+        """Load artifacts from persistent storage"""
+        try:
+            if os.path.exists(self.artifacts_file):
+                with open(self.artifacts_file, 'rb') as f:
+                    artifacts = pickle.load(f)
+                    st.session_state.artifacts = artifacts
+            else:
+                st.session_state.artifacts = {}
+        except Exception as e:
+            st.error(f"Failed to load artifacts: {str(e)}")
             st.session_state.artifacts = {}
     
+    def _save_artifacts_to_disk(self):
+        """Save artifacts to persistent storage"""
+        try:
+            with open(self.artifacts_file, 'wb') as f:
+                pickle.dump(st.session_state.artifacts, f)
+            return True
+        except Exception as e:
+            st.error(f"Failed to save artifacts to disk: {str(e)}")
+            return False
+    
     def save_artifact(self, artifact: DataArtifact) -> bool:
-        """Save an artifact to session state"""
+        """Save an artifact to session state and persistent storage"""
         try:
             st.session_state.artifacts[artifact.name] = artifact
-            return True
+            return self._save_artifacts_to_disk()
         except Exception as e:
             st.error(f"Failed to save artifact: {str(e)}")
             return False
@@ -167,15 +199,26 @@ class ArtifactManager:
         return list(st.session_state.artifacts.keys())
     
     def delete_artifact(self, name: str) -> bool:
-        """Delete an artifact"""
+        """Delete an artifact from session state and persistent storage"""
         if name in st.session_state.artifacts:
             del st.session_state.artifacts[name]
-            return True
+            return self._save_artifacts_to_disk()
         return False
     
     def get_artifacts_by_source(self, source: str) -> List[DataArtifact]:
         """Get artifacts filtered by source"""
         return [artifact for artifact in st.session_state.artifacts.values() if artifact.source == source]
+    
+    def clear_all_artifacts(self) -> bool:
+        """Clear all artifacts from memory and disk"""
+        try:
+            st.session_state.artifacts = {}
+            if os.path.exists(self.artifacts_file):
+                os.remove(self.artifacts_file)
+            return True
+        except Exception as e:
+            st.error(f"Failed to clear artifacts: {str(e)}")
+            return False
 
 class DataProcessor:
     """Main class for handling all data processing operations"""
@@ -402,10 +445,24 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
     if artifacts:
         st.markdown("""
         <div class="artifact-manager">
-            <h4>📦 Data Artifacts</h4>
-            <p>Saved datasets that can be reused across tools</p>
+            <h4>📦 Data Artifacts (Persistent)</h4>
+            <p>Saved datasets that persist across sessions and can be reused across tools</p>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Add clear all button
+        if st.button("🗑️ Clear All Artifacts", type="secondary", use_container_width=True):
+            if st.session_state.get('confirm_clear_all', False):
+                if artifact_manager.clear_all_artifacts():
+                    st.success("✅ All artifacts cleared!")
+                    st.session_state.confirm_clear_all = False
+                    st.rerun()
+            else:
+                st.session_state.confirm_clear_all = True
+                st.warning("⚠️ Click again to confirm clearing ALL artifacts")
+                st.rerun()
+        
+        st.divider()
         
         for artifact_name in artifacts:
             artifact = artifact_manager.get_artifact(artifact_name)
