@@ -8,6 +8,7 @@ import base64
 from datetime import datetime
 import json
 import os
+import uuid
 
 # Page configuration
 st.set_page_config(
@@ -321,6 +322,8 @@ class DataProcessor:
             min_val = kwargs.get('random_float_min', 0.0)
             max_val = kwargs.get('random_float_max', 1.0)
             df[col_name] = np.random.uniform(min_val, max_val, size=len(df))
+        elif col_type == "UUID7":
+            df[col_name] = [str(uuid.uuid4()) for _ in range(len(df))]
         elif col_type == "Increment Existing":
             source_col = kwargs.get('source_column')
             increment_by = kwargs.get('increment_by', 1)
@@ -763,7 +766,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     new_col_name = st.text_input("New Column Name:", key="new_col_name_pre_clean")
                     col_type = st.selectbox(
                         "Select Column Value Type:",
-                        ["Autonumber", "Fixed Value", "Random Integer", "Random Float", "Increment Existing"],
+                        ["Autonumber", "Fixed Value", "Random Integer", "Random Float", "UUID7", "Increment Existing"],
                         key="new_col_type_pre_clean"
                     )
 
@@ -779,6 +782,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     elif col_type == "Random Float":
                         col_kwargs['random_float_min'] = st.number_input("Minimum Value:", value=0.0, key="rand_float_min_pre_clean")
                         col_kwargs['random_float_max'] = st.number_input("Maximum Value:", value=1.0, key="rand_float_max_pre_clean")
+                    elif col_type == "UUID7":
+                        st.info("UUID7 will generate unique identifiers for each row")
                     elif col_type == "Increment Existing":
                         numeric_cols = working_df.select_dtypes(include=np.number).columns.tolist()
                         if numeric_cols:
@@ -801,16 +806,9 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                     processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
                                 )
                             
-                            # Only add the new column to selection if user hasn't made any column selections yet
-                            if "cols_to_keep_clean" not in st.session_state:
-                                # First time - include all columns including the new one
-                                st.session_state["cols_to_keep_clean"] = []
-                            else:
-                                # User has made selections - add new column to their existing selection
-                                current_selection = st.session_state.get("cols_to_keep_clean", [])
-                                if new_col_name.strip() not in current_selection:
-                                    current_selection.append(new_col_name.strip())
-                                    st.session_state["cols_to_keep_clean"] = current_selection
+                            # Clear the column selection cache to force refresh
+                            if "cols_to_keep_clean" in st.session_state:
+                                del st.session_state["cols_to_keep_clean"]
                             
                             st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
                             st.rerun()
@@ -839,7 +837,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
                     
-                    # Get current selection - only default to all columns if no previous selection exists
+                    # Get current selection - default to all columns if no previous selection exists or if columns changed
                     if "cols_to_keep_clean" not in st.session_state:
                         # First time - default to all columns
                         default_selection = current_columns_for_selection
@@ -847,6 +845,11 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         # Use existing selection, but filter out columns that no longer exist
                         existing_selection = st.session_state.get("cols_to_keep_clean", [])
                         default_selection = [col for col in existing_selection if col in current_columns_for_selection]
+                        
+                        # If we have new columns that weren't in the previous selection, add them
+                        new_columns = [col for col in current_columns_for_selection if col not in existing_selection]
+                        if new_columns:
+                            default_selection.extend(new_columns)
                     
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
