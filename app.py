@@ -806,9 +806,14 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                     processor.dataframes[0], new_col_name.strip(), col_type, **col_kwargs
                                 )
                             
-                            # Clear the column selection cache to force refresh
-                            if "cols_to_keep_clean" in st.session_state:
-                                del st.session_state["cols_to_keep_clean"]
+                            # Force refresh by clearing all related session state keys
+                            keys_to_clear = [key for key in st.session_state.keys() if key.startswith('cols_to_keep')]
+                            for key in keys_to_clear:
+                                del st.session_state[key]
+                            
+                            # Also clear any cached column data
+                            if 'current_columns_cache' in st.session_state:
+                                del st.session_state['current_columns_cache']
                             
                             st.success(f"✅ Column '{new_col_name.strip()}' added to source data!")
                             st.rerun()
@@ -837,25 +842,16 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 if current_columns_for_selection:
                     st.info("Select columns to KEEP. Unselected columns will be removed after cleaning.")
                     
-                    # Get current selection - default to all columns if no previous selection exists or if columns changed
-                    if "cols_to_keep_clean" not in st.session_state:
-                        # First time - default to all columns
-                        default_selection = current_columns_for_selection
-                    else:
-                        # Use existing selection, but filter out columns that no longer exist
-                        existing_selection = st.session_state.get("cols_to_keep_clean", [])
-                        default_selection = [col for col in existing_selection if col in current_columns_for_selection]
-                        
-                        # If we have new columns that weren't in the previous selection, add them
-                        new_columns = [col for col in current_columns_for_selection if col not in existing_selection]
-                        if new_columns:
-                            default_selection.extend(new_columns)
+                    # Create a unique key based on the current columns to force refresh when columns change
+                    columns_hash = hash(tuple(sorted(current_columns_for_selection)))
+                    multiselect_key = f"cols_to_keep_clean_{columns_hash}"
                     
+                    # Always default to all columns when the column set changes
                     columns_to_keep = st.multiselect(
                         "Select columns to keep:",
                         options=current_columns_for_selection,
-                        default=default_selection,
-                        key="cols_to_keep_clean"
+                        default=current_columns_for_selection,  # Always default to all columns
+                        key=multiselect_key
                     )
                 else:
                     st.warning("No columns to display. Please upload files first.")
