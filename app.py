@@ -2041,7 +2041,7 @@ def main():
     
     # Add logout button and artifact manager in sidebar
     with st.sidebar:
-        if st.button("Logout", use_container_width=True):
+        if st.button("Logout", key="logout_btn"):
             st.session_state.authenticated = False
             st.rerun()
         
@@ -2050,13 +2050,13 @@ def main():
         # Artifact manager in sidebar
         render_artifact_manager(artifact_manager)
     
-    # Header
-    st.markdown("""
-    <div class="main-header fade-in" style="padding: 1.5rem 2rem;">
-        <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem;">CSV Data Processing Suite</h1>
-        <p style="font-size: 0.875rem; margin-bottom: 0;">Complete toolkit for CSV data cleaning, merging, and analysis</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Logo and title
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        st.image("/Users/aalberici/Repos/evo-csv-merge/evo-logo.png", width=120)
+    with col2:
+        st.title("CSV Data Processing Suite")
+        st.caption("Complete toolkit for CSV data cleaning, merging, and analysis")
     
     # Initialize processor
     if 'processor' not in st.session_state:
