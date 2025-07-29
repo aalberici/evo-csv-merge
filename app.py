@@ -1287,7 +1287,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                     </button>
                     """, unsafe_allow_html=True)
                     if st.button("", key=f"view_{artifact_name}", 
-                               help="Preview data", label_visibility="hidden"):
+                               help="Preview data"):
                         st.session_state[f"show_popup_{artifact_name}"] = True
                 
                 with col2:
@@ -1297,7 +1297,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                     </button>
                     """, unsafe_allow_html=True)
                     if st.button("", key=f"rename_{artifact_name}", 
-                               help="Rename artifact", label_visibility="hidden"):
+                               help="Rename artifact"):
                         st.session_state[f"rename_mode_{artifact_name}"] = True
                         st.rerun()
                 
@@ -1308,7 +1308,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                     </button>
                     """, unsafe_allow_html=True)
                     if st.button("", key=f"copy_{artifact_name}", 
-                               help="Duplicate artifact", label_visibility="hidden"):
+                               help="Duplicate artifact"):
                         # Create a copy with timestamp
                         new_name = f"{artifact_name}_copy_{datetime.now().strftime('%H%M%S')}"
                         new_artifact = DataArtifact(
@@ -1328,7 +1328,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                     </button>
                     """, unsafe_allow_html=True)
                     if st.button("", key=f"delete_{artifact_name}", 
-                               help="Delete artifact", label_visibility="hidden"):
+                               help="Delete artifact"):
                         if st.session_state.get(f'confirm_delete_{artifact_name}', False):
                             if artifact_manager.delete_artifact(artifact_name):
                                 st.success(f"✅ Deleted")
@@ -1352,7 +1352,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                                 {lucide_icon("check", 16)} Save
                             </button>
                             """, unsafe_allow_html=True)
-                            if st.button("", key="save_rename", type="primary", label_visibility="hidden"):
+                            if st.button("", key="save_rename", type="primary"):
                                 if new_name.strip() and new_name.strip() != artifact_name:
                                     if new_name.strip() not in artifact_manager.list_artifacts():
                                         # Create new artifact with new name
@@ -1379,7 +1379,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                                 {lucide_icon("x", 16)} Cancel
                             </button>
                             """, unsafe_allow_html=True)
-                            if st.button("", key="cancel_rename", label_visibility="hidden"):
+                            if st.button("", key="cancel_rename"):
                                 st.session_state[f"rename_mode_{artifact_name}"] = False
                                 st.rerun()
                     
@@ -1410,7 +1410,7 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                             {lucide_icon("x", 16)} Close
                         </button>
                         """, unsafe_allow_html=True)
-                        if st.button("", key="close_preview", type="primary", label_visibility="hidden"):
+                        if st.button("", key="close_preview", type="primary"):
                             st.session_state[f"show_popup_{artifact_name}"] = False
                             st.rerun()
                     
