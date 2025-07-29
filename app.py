@@ -1306,9 +1306,12 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                     # Create custom button with eye icon inside
                     eye_icon = eye_icon_html(20)
                     if eye_icon and eye_icon.startswith('<img'):
+                        # Use a unique button ID for JavaScript targeting
+                        button_id = f"view_btn_{artifact_name}_{hash(artifact_name) % 10000}"
+                        
                         st.markdown(f"""
                         <div style="margin-bottom: 0.5rem;">
-                            <button onclick="document.querySelector('[data-testid*=\"baseButton\"][key*=\"view_{artifact_name}\"]').click()" 
+                            <button id="{button_id}" 
                                     style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 0.5rem; 
                                            background: white; cursor: pointer; display: flex; align-items: center; 
                                            justify-content: center; transition: all 0.3s ease;"
@@ -1318,10 +1321,50 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                                 {eye_icon}
                             </button>
                         </div>
+                        <script>
+                        document.getElementById('{button_id}').onclick = function() {{
+                            // Find and click the Streamlit button
+                            const streamlitButtons = document.querySelectorAll('button[data-testid="baseButton-secondary"]');
+                            for (let btn of streamlitButtons) {{
+                                if (btn.getAttribute('key') && btn.getAttribute('key').includes('view_{artifact_name}')) {{
+                                    btn.click();
+                                    break;
+                                }}
+                            }}
+                            // Alternative approach - look for button by text content or other attributes
+                            const allButtons = document.querySelectorAll('button');
+                            for (let btn of allButtons) {{
+                                if (btn.getAttribute('data-testid') === 'baseButton-secondary' && 
+                                    btn.textContent.trim() === '' &&
+                                    btn.getAttribute('title') === 'Preview data') {{
+                                    btn.click();
+                                    break;
+                                }}
+                            }}
+                        }};
+                        </script>
                         """, unsafe_allow_html=True)
-                        # Hidden button for functionality
-                        if st.button("", key=f"view_{artifact_name}", help="Preview data"):
-                            st.session_state[f"show_popup_{artifact_name}"] = True
+                        
+                        # Hidden Streamlit button - make it completely invisible
+                        st.markdown("""
+                        <style>
+                        .hidden-button button {
+                            opacity: 0 !important;
+                            height: 0 !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                            border: none !important;
+                            position: absolute !important;
+                            pointer-events: none !important;
+                        }
+                        </style>
+                        """, unsafe_allow_html=True)
+                        
+                        with st.container():
+                            st.markdown('<div class="hidden-button">', unsafe_allow_html=True)
+                            if st.button("", key=f"view_{artifact_name}", help="Preview data"):
+                                st.session_state[f"show_popup_{artifact_name}"] = True
+                            st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         # Fallback to emoji if icon not found
                         if st.button("👁", key=f"view_{artifact_name}", 
