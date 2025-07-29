@@ -64,68 +64,473 @@ def check_authentication():
     
     return True
 
-# Enhanced CSS for multi-purpose app
+# Modern CSS Design System
 st.markdown("""
 <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    /* CSS Variables for Design System */
+    :root {
+        --primary-50: #f0f9ff;
+        --primary-100: #e0f2fe;
+        --primary-200: #bae6fd;
+        --primary-300: #7dd3fc;
+        --primary-400: #38bdf8;
+        --primary-500: #0ea5e9;
+        --primary-600: #0284c7;
+        --primary-700: #0369a1;
+        --primary-800: #075985;
+        --primary-900: #0c4a6e;
+        
+        --secondary-50: #fafaf9;
+        --secondary-100: #f5f5f4;
+        --secondary-200: #e7e5e4;
+        --secondary-300: #d6d3d1;
+        --secondary-400: #a8a29e;
+        --secondary-500: #78716c;
+        --secondary-600: #57534e;
+        --secondary-700: #44403c;
+        --secondary-800: #292524;
+        --secondary-900: #1c1917;
+        
+        --success-50: #f0fdf4;
+        --success-500: #22c55e;
+        --success-600: #16a34a;
+        
+        --warning-50: #fffbeb;
+        --warning-500: #f59e0b;
+        --warning-600: #d97706;
+        
+        --error-50: #fef2f2;
+        --error-500: #ef4444;
+        --error-600: #dc2626;
+        
+        --neutral-50: #fafafa;
+        --neutral-100: #f5f5f5;
+        --neutral-200: #e5e5e5;
+        --neutral-300: #d4d4d4;
+        --neutral-400: #a3a3a3;
+        --neutral-500: #737373;
+        --neutral-600: #525252;
+        --neutral-700: #404040;
+        --neutral-800: #262626;
+        --neutral-900: #171717;
+        
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        
+        --radius-sm: 0.375rem;
+        --radius-md: 0.5rem;
+        --radius-lg: 0.75rem;
+        --radius-xl: 1rem;
+        --radius-2xl: 1.5rem;
+    }
+    
+    /* Global Styles */
+    .stApp {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, var(--neutral-50) 0%, var(--primary-50) 100%);
+        color: var(--neutral-800);
+        line-height: 1.6;
+    }
+    
+    /* Typography */
+    h1, h2, h3, h4, h5, h6 {
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        color: var(--neutral-900);
+    }
+    
+    h1 { font-size: 2.25rem; line-height: 2.5rem; }
+    h2 { font-size: 1.875rem; line-height: 2.25rem; }
+    h3 { font-size: 1.5rem; line-height: 2rem; }
+    
+    /* Main Header */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 50%, var(--primary-800) 100%);
+        padding: 3rem 2rem;
+        border-radius: var(--radius-2xl);
         color: white;
         text-align: center;
         margin-bottom: 2rem;
+        box-shadow: var(--shadow-xl);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .main-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.3;
+    }
+    
+    .main-header h1 {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .main-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.125rem;
+        margin-bottom: 0;
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Cards */
+    .modern-card {
+        background: white;
+        border-radius: var(--radius-xl);
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--neutral-200);
+        transition: all 0.3s ease;
+    }
+    
+    .modern-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+        border-color: var(--primary-200);
     }
     
     .artifact-card {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        padding: 1rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
         color: white;
-        margin: 0.5rem 0;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-radius: var(--radius-xl);
+        padding: 1.5rem;
+        margin: 0.75rem 0;
+        box-shadow: var(--shadow-lg);
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .artifact-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-xl);
     }
     
     .tool-card {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border-left: 4px solid #667eea;
-        margin: 1rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-xl);
+        border-left: 4px solid var(--primary-500);
+        margin: 1.5rem 0;
+        box-shadow: var(--shadow-md);
+        transition: all 0.3s ease;
+    }
+    
+    .tool-card:hover {
+        border-left-color: var(--primary-600);
+        box-shadow: var(--shadow-lg);
+        transform: translateX(4px);
     }
     
     .stat-card {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #4facfe;
-        margin: 0.5rem 0;
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        border-left: 4px solid var(--primary-400);
+        margin: 0.75rem 0;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
     }
     
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        border-left-color: var(--primary-500);
+    }
+    
+    /* Status Messages */
     .success-message {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-        padding: 1rem;
-        border-radius: 8px;
+        background: var(--success-50);
+        border: 1px solid var(--success-500);
+        color: var(--success-600);
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
         margin: 1rem 0;
+        font-weight: 500;
     }
     
+    .warning-message {
+        background: var(--warning-50);
+        border: 1px solid var(--warning-500);
+        color: var(--warning-600);
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        margin: 1rem 0;
+        font-weight: 500;
+    }
+    
+    .error-message {
+        background: var(--error-50);
+        border: 1px solid var(--error-500);
+        color: var(--error-600);
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        margin: 1rem 0;
+        font-weight: 500;
+    }
+    
+    /* Artifact Manager */
     .artifact-manager {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 10px;
-        border: 2px dashed #667eea;
-        margin: 1rem 0;
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-xl);
+        border: 2px dashed var(--primary-300);
+        margin: 1.5rem 0;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
     }
     
+    .artifact-manager:hover {
+        border-color: var(--primary-400);
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+        color: white;
+        border: none;
+        border-radius: var(--radius-lg);
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        letter-spacing: 0.025em;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+    
+    .stButton > button:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Form Elements */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {
+        border: 2px solid var(--neutral-200);
+        border-radius: var(--radius-lg);
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div > select:focus {
+        border-color: var(--primary-500);
+        box-shadow: 0 0 0 3px var(--primary-100);
+        outline: none;
+    }
+    
+    /* Multiselect */
+    .stMultiSelect > div > div {
+        border: 2px solid var(--neutral-200);
+        border-radius: var(--radius-lg);
+        background: white;
+    }
+    
+    .stMultiSelect > div > div:focus-within {
+        border-color: var(--primary-500);
+        box-shadow: 0 0 0 3px var(--primary-100);
+    }
+    
+    /* Checkboxes */
+    .stCheckbox > label {
+        font-weight: 500;
+        color: var(--neutral-700);
+    }
+    
+    /* Expanders */
+    .streamlit-expanderHeader {
+        background: var(--neutral-50);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--neutral-200);
+        font-weight: 600;
+        color: var(--neutral-800);
+    }
+    
+    .streamlit-expanderContent {
+        background: white;
+        border: 1px solid var(--neutral-200);
+        border-top: none;
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        background: var(--neutral-100);
+        padding: 0.25rem;
+        border-radius: var(--radius-lg);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        border-radius: var(--radius-md);
+        color: var(--neutral-600);
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: white;
+        color: var(--primary-600);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Metrics */
+    [data-testid="metric-container"] {
+        background: white;
+        border: 1px solid var(--neutral-200);
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
+    }
+    
+    [data-testid="metric-container"]:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-200);
+    }
+    
+    /* DataFrames */
+    .stDataFrame {
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--neutral-200);
+    }
+    
+    /* Sidebar */
+    .css-1d391kg {
+        background: linear-gradient(180deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+        border-right: 1px solid var(--neutral-200);
+    }
+    
+    /* File Uploader */
+    .stFileUploader > div {
+        border: 2px dashed var(--primary-300);
+        border-radius: var(--radius-lg);
+        background: var(--primary-50);
+        transition: all 0.3s ease;
+    }
+    
+    .stFileUploader > div:hover {
+        border-color: var(--primary-400);
+        background: var(--primary-100);
+    }
+    
+    /* Progress Bar */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, var(--primary-500) 0%, var(--primary-600) 100%);
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: var(--primary-500);
+    }
+    
+    /* Footer */
     .footer {
         text-align: center;
-        padding: 2rem;
-        color: #666;
-        font-size: 0.9em;
-        border-top: 1px solid #eee;
-        margin-top: 3rem;
+        padding: 3rem 2rem;
+        color: var(--neutral-500);
+        font-size: 0.875rem;
+        border-top: 1px solid var(--neutral-200);
+        margin-top: 4rem;
+        background: var(--neutral-50);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: var(--neutral-100);
+        border-radius: var(--radius-sm);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--neutral-300);
+        border-radius: var(--radius-sm);
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--neutral-400);
+    }
+    
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.5s ease-out;
+    }
+    
+    .slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .main-header {
+            padding: 2rem 1rem;
+        }
+        
+        .main-header h1 {
+            font-size: 2rem;
+        }
+        
+        .modern-card,
+        .tool-card {
+            padding: 1rem;
+        }
+    }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --neutral-50: #171717;
+            --neutral-100: #262626;
+            --neutral-200: #404040;
+            --neutral-800: #f5f5f5;
+            --neutral-900: #fafafa;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -721,13 +1126,19 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
     """Render the artifact management interface"""
     artifacts = artifact_manager.list_artifacts()
     
-    # Header with professional styling
+    # Header with modern styling
     st.markdown("""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-        <h4 style="color: white; margin: 0; font-size: 1.1rem;">💾 Data Artifacts</h4>
-        <p style="color: rgba(255,255,255,0.8); margin: 0.2rem 0 0 0; font-size: 0.8rem;">
-            Persistent datasets
+    <div style="background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%); 
+                padding: 1.5rem; border-radius: var(--radius-xl); margin-bottom: 1.5rem; 
+                box-shadow: var(--shadow-lg); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E'); 
+                    opacity: 0.3;"></div>
+        <h4 style="color: white; margin: 0; font-size: 1.25rem; font-weight: 600; position: relative; z-index: 1;">
+            💾 Data Artifacts
+        </h4>
+        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 0.875rem; position: relative; z-index: 1;">
+            Persistent datasets ready for processing
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -750,19 +1161,34 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
         for artifact_name in artifacts:
             artifact = artifact_manager.get_artifact(artifact_name)
             
-            # Container for each artifact
+            # Container for each artifact with modern styling
             with st.container():
                 st.markdown(f"""
-                <div style="background: #f8f9fa; border-left: 4px solid #667eea; 
-                           padding: 0.8rem; margin: 0.5rem 0; border-radius: 4px;">
+                <div class="modern-card slide-in" style="border-left: 4px solid var(--primary-500); margin: 1rem 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <strong style="color: #333; font-size: 0.9rem;">{artifact.name}</strong><br>
-                            <small style="color: #666;">
-                                {artifact.rows:,} × {artifact.columns} | {artifact.memory_mb:.1f}MB | {artifact.source}
-                            </small><br>
-                            <small style="color: #888; font-size: 0.75rem;">
-                                {artifact.created_at.strftime('%m/%d %H:%M')}
+                            <strong style="color: var(--neutral-900); font-size: 1rem; font-weight: 600;">
+                                {artifact.name}
+                            </strong><br>
+                            <div style="margin: 0.5rem 0; color: var(--neutral-600); font-size: 0.875rem;">
+                                <span style="background: var(--primary-100); color: var(--primary-700); 
+                                           padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); 
+                                           font-weight: 500; margin-right: 0.5rem;">
+                                    {artifact.rows:,} rows
+                                </span>
+                                <span style="background: var(--secondary-100); color: var(--secondary-700); 
+                                           padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); 
+                                           font-weight: 500; margin-right: 0.5rem;">
+                                    {artifact.columns} cols
+                                </span>
+                                <span style="background: var(--neutral-100); color: var(--neutral-700); 
+                                           padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); 
+                                           font-weight: 500;">
+                                    {artifact.memory_mb:.1f}MB
+                                </span>
+                            </div>
+                            <small style="color: var(--neutral-500); font-size: 0.75rem;">
+                                {artifact.source} • {artifact.created_at.strftime('%m/%d %H:%M')}
                             </small>
                         </div>
                     </div>
@@ -877,10 +1303,16 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
     
     else:
         st.markdown("""
-        <div style="text-align: center; padding: 2rem; color: #666; 
-                   background: #f8f9fa; border-radius: 8px; border: 2px dashed #ddd;">
-            <h4 style="color: #888;">📦 No Artifacts Yet</h4>
-            <p style="margin: 0;">Create some in the Data Cleaning tool!</p>
+        <div style="text-align: center; padding: 3rem 2rem; color: var(--neutral-500); 
+                   background: white; border-radius: var(--radius-xl); 
+                   border: 2px dashed var(--neutral-300); box-shadow: var(--shadow-sm);">
+            <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.6;">📦</div>
+            <h4 style="color: var(--neutral-600); font-weight: 600; margin-bottom: 0.5rem;">
+                No Artifacts Yet
+            </h4>
+            <p style="margin: 0; color: var(--neutral-500);">
+                Create some in the Data Cleaning tool to get started!
+            </p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1625,10 +2057,10 @@ def main():
     
     # Header
     st.markdown("""
-    <div class="main-header">
+    <div class="main-header fade-in">
         <h1>🔧 CSV Data Processing Suite</h1>
         <p>Complete toolkit for CSV data cleaning, merging, and analysis</p>
-        <p style="font-size: 0.9em; opacity: 0.8;">Create artifacts in Data Cleaning, then reuse them in CSV Merger</p>
+        <p style="font-size: 1rem; opacity: 0.9; margin-top: 0.5rem;">Create artifacts in Data Cleaning, then reuse them in CSV Merger</p>
     </div>
     """, unsafe_allow_html=True)
     
