@@ -446,75 +446,168 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
     """Render the artifact management interface"""
     artifacts = artifact_manager.list_artifacts()
     
+    # Header with professional styling
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <h4 style="color: white; margin: 0; font-size: 1.1rem;">💾 Data Artifacts</h4>
+        <p style="color: rgba(255,255,255,0.8); margin: 0.2rem 0 0 0; font-size: 0.8rem;">
+            Persistent datasets
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     if artifacts:
-        st.markdown("""
-        <div class="artifact-manager">
-            <h4>📦 Data Artifacts (Persistent)</h4>
-            <p>Saved datasets that persist across sessions and can be reused across tools</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Add clear all button
-        if st.button("🗑️ Clear All Artifacts", type="secondary", use_container_width=True):
-            if st.session_state.get('confirm_clear_all', False):
-                if artifact_manager.clear_all_artifacts():
-                    st.success("✅ All artifacts cleared!")
-                    st.session_state.confirm_clear_all = False
+        # Bulk actions
+        with st.expander("⚙️ Bulk Actions", expanded=False):
+            if st.button("🗑️ Clear All", type="secondary", use_container_width=True):
+                if st.session_state.get('confirm_clear_all', False):
+                    if artifact_manager.clear_all_artifacts():
+                        st.success("✅ All cleared!")
+                        st.session_state.confirm_clear_all = False
+                        st.rerun()
+                else:
+                    st.session_state.confirm_clear_all = True
+                    st.warning("⚠️ Click again to confirm")
                     st.rerun()
-            else:
-                st.session_state.confirm_clear_all = True
-                st.warning("⚠️ Click again to confirm clearing ALL artifacts")
-                st.rerun()
         
-        st.divider()
-        
+        # Artifacts list with improved UX
         for artifact_name in artifacts:
             artifact = artifact_manager.get_artifact(artifact_name)
             
-            col1, col2, col3 = st.columns([3, 1, 1])
-            
-            with col1:
+            # Container for each artifact
+            with st.container():
                 st.markdown(f"""
-                <div class="artifact-card">
-                    <strong>{artifact.name}</strong><br>
-                    <small>{artifact.get_summary()}</small><br>
-                    <small>Created: {artifact.created_at.strftime('%Y-%m-%d %H:%M')}</small>
+                <div style="background: #f8f9fa; border-left: 4px solid #667eea; 
+                           padding: 0.8rem; margin: 0.5rem 0; border-radius: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #333; font-size: 0.9rem;">{artifact.name}</strong><br>
+                            <small style="color: #666;">
+                                {artifact.rows:,} × {artifact.columns} | {artifact.memory_mb:.1f}MB | {artifact.source}
+                            </small><br>
+                            <small style="color: #888; font-size: 0.75rem;">
+                                {artifact.created_at.strftime('%m/%d %H:%M')}
+                            </small>
+                        </div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-            
-            with col2:
-                if st.button("👁️ View", key=f"view_{artifact_name}", use_container_width=True):
-                    st.session_state[f"show_popup_{artifact_name}"] = True
                 
-                # Show popup dialog if triggered
+                # Action buttons in a compact row
+                col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+                
+                with col1:
+                    if st.button("👁", key=f"view_{artifact_name}", 
+                               help="Preview data", use_container_width=True):
+                        st.session_state[f"show_popup_{artifact_name}"] = True
+                
+                with col2:
+                    if st.button("✏️", key=f"rename_{artifact_name}", 
+                               help="Rename artifact", use_container_width=True):
+                        st.session_state[f"rename_mode_{artifact_name}"] = True
+                        st.rerun()
+                
+                with col3:
+                    if st.button("📋", key=f"copy_{artifact_name}", 
+                               help="Duplicate artifact", use_container_width=True):
+                        # Create a copy with timestamp
+                        new_name = f"{artifact_name}_copy_{datetime.now().strftime('%H%M%S')}"
+                        new_artifact = DataArtifact(
+                            name=new_name,
+                            dataframe=artifact.dataframe.copy(),
+                            source=artifact.source
+                        )
+                        if artifact_manager.save_artifact(new_artifact):
+                            st.success(f"✅ Copied as {new_name}")
+                            st.rerun()
+                
+                with col4:
+                    if st.button("🗑", key=f"delete_{artifact_name}", 
+                               help="Delete artifact", use_container_width=True):
+                        if st.session_state.get(f'confirm_delete_{artifact_name}', False):
+                            if artifact_manager.delete_artifact(artifact_name):
+                                st.success(f"✅ Deleted")
+                                st.session_state[f'confirm_delete_{artifact_name}'] = False
+                                st.rerun()
+                        else:
+                            st.session_state[f'confirm_delete_{artifact_name}'] = True
+                            st.warning("⚠️ Click again to confirm")
+                            st.rerun()
+                
+                # Rename dialog
+                if st.session_state.get(f"rename_mode_{artifact_name}", False):
+                    @st.dialog(f"✏️ Rename: {artifact_name}")
+                    def show_rename_dialog():
+                        new_name = st.text_input("New name:", value=artifact_name, key=f"new_name_{artifact_name}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ Save", type="primary", use_container_width=True):
+                                if new_name.strip() and new_name.strip() != artifact_name:
+                                    if new_name.strip() not in artifact_manager.list_artifacts():
+                                        # Create new artifact with new name
+                                        new_artifact = DataArtifact(
+                                            name=new_name.strip(),
+                                            dataframe=artifact.dataframe.copy(),
+                                            source=artifact.source,
+                                            created_at=artifact.created_at
+                                        )
+                                        if artifact_manager.save_artifact(new_artifact):
+                                            # Delete old artifact
+                                            artifact_manager.delete_artifact(artifact_name)
+                                            st.success(f"✅ Renamed to {new_name.strip()}")
+                                            st.session_state[f"rename_mode_{artifact_name}"] = False
+                                            st.rerun()
+                                    else:
+                                        st.error("❌ Name already exists")
+                                else:
+                                    st.error("❌ Enter a valid new name")
+                        
+                        with col2:
+                            if st.button("❌ Cancel", use_container_width=True):
+                                st.session_state[f"rename_mode_{artifact_name}"] = False
+                                st.rerun()
+                    
+                    show_rename_dialog()
+                
+                # Preview dialog
                 if st.session_state.get(f"show_popup_{artifact_name}", False):
-                    @st.dialog(f"📊 Preview: {artifact_name}")
+                    @st.dialog(f"📊 {artifact_name}")
                     def show_artifact_preview():
+                        # Metrics in columns
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Rows", f"{artifact.rows:,}")
+                        with col2:
+                            st.metric("Columns", artifact.columns)
+                        with col3:
+                            st.metric("Size", f"{artifact.memory_mb:.1f}MB")
+                        
                         st.markdown(f"""
-                        **Dataset Information:**
-                        - **Rows:** {artifact.rows:,}
-                        - **Columns:** {artifact.columns}
-                        - **Size:** {artifact.memory_mb:.1f} MB
-                        - **Source:** {artifact.source}
-                        - **Created:** {artifact.created_at.strftime('%Y-%m-%d %H:%M:%S')}
+                        **Source:** {artifact.source} | **Created:** {artifact.created_at.strftime('%Y-%m-%d %H:%M:%S')}
                         """)
                         
-                        st.markdown("**Data Preview (first 20 rows):**")
+                        st.markdown("**Data Preview:**")
                         st.dataframe(artifact.dataframe.head(20), use_container_width=True)
                         
-                        if st.button("Close", type="primary", use_container_width=True):
+                        if st.button("✅ Close", type="primary", use_container_width=True):
                             st.session_state[f"show_popup_{artifact_name}"] = False
                             st.rerun()
                     
                     show_artifact_preview()
-            
-            with col3:
-                if st.button("🗑️ Delete", key=f"delete_{artifact_name}", use_container_width=True):
-                    if artifact_manager.delete_artifact(artifact_name):
-                        st.success(f"Deleted {artifact_name}")
-                        st.rerun()
+                
+                st.markdown("<hr style='margin: 0.5rem 0; border: none; border-top: 1px solid #eee;'>", 
+                           unsafe_allow_html=True)
+    
     else:
-        st.info("📦 No artifacts saved yet. Create some in the Data Cleaning section!")
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem; color: #666; 
+                   background: #f8f9fa; border-radius: 8px; border: 2px dashed #ddd;">
+            <h4 style="color: #888;">📦 No Artifacts Yet</h4>
+            <p style="margin: 0;">Create some in the Data Cleaning tool!</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 @st.cache_data
 def convert_df_to_csv(df):
