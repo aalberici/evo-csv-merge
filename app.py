@@ -455,6 +455,57 @@ class DataProcessor:
             st.error(f"Merge operation failed: {str(e)}")
             return False
     
+    def to_camel_case(self, text: str) -> str:
+        """Convert text to camelCase"""
+        # Remove special characters and split by spaces, underscores, hyphens
+        import re
+        words = re.split(r'[_\-\s]+', text.strip())
+        if not words:
+            return text
+        
+        # First word lowercase, rest title case
+        camel_case = words[0].lower()
+        for word in words[1:]:
+            if word:
+                camel_case += word.capitalize()
+        
+        return camel_case
+    
+    def remove_spaces_from_text(self, text: str) -> str:
+        """Remove spaces and replace with underscores"""
+        return text.strip().replace(' ', '_')
+    
+    def apply_column_renaming(self, df: pd.DataFrame, rename_options: Dict[str, Any]) -> pd.DataFrame:
+        """Apply column renaming based on options"""
+        if not rename_options.get('enable_column_renaming', False):
+            return df
+        
+        new_columns = {}
+        
+        for col in df.columns:
+            new_name = col
+            
+            # Apply automatic transformations
+            if rename_options.get('remove_spaces', False):
+                new_name = self.remove_spaces_from_text(new_name)
+            
+            if rename_options.get('to_camel_case', False):
+                new_name = self.to_camel_case(new_name)
+            
+            # Apply manual renames (takes precedence)
+            manual_renames = rename_options.get('manual_renames', {})
+            if col in manual_renames and manual_renames[col].strip():
+                new_name = manual_renames[col].strip()
+            
+            if new_name != col:
+                new_columns[col] = new_name
+        
+        if new_columns:
+            df = df.rename(columns=new_columns)
+            st.success(f"✅ Renamed {len(new_columns)} columns: {', '.join([f'{old} → {new}' for old, new in new_columns.items()])}")
+        
+        return df
+    
     def clean_data(self, options: Dict[str, Any]) -> bool:
         """Clean data based on provided options"""
         try:
@@ -477,9 +528,36 @@ class DataProcessor:
                 self.cleaned_df = valid_df.copy() if valid_df is not None else None
             
             if self.cleaned_df is not None:
-                # Apply column keeping/removal *before* other operations, as it affects columns
+                # Apply column renaming FIRST (before column selection)
+                self.cleaned_df = self.apply_column_renaming(self.cleaned_df, options.get('column_rename_options', {}))
+                # Apply column keeping/removal *after* renaming, as it affects columns
                 columns_to_keep = options.get('columns_to_keep')
                 if columns_to_keep is not None and len(columns_to_keep) > 0:
+                    # Map original column names to renamed columns if renaming was applied
+                    rename_options = options.get('column_rename_options', {})
+                    if rename_options.get('enable_column_renaming', False):
+                        # Create mapping from old names to new names
+                        old_to_new = {}
+                        manual_renames = rename_options.get('manual_renames', {})
+                        
+                        for old_col in columns_to_keep:
+                            new_col = old_col
+                            
+                            # Apply automatic transformations
+                            if rename_options.get('remove_spaces', False):
+                                new_col = self.remove_spaces_from_text(new_col)
+                            if rename_options.get('to_camel_case', False):
+                                new_col = self.to_camel_case(new_col)
+                            
+                            # Apply manual renames (takes precedence)
+                            if old_col in manual_renames and manual_renames[old_col].strip():
+                                new_col = manual_renames[old_col].strip()
+                            
+                            old_to_new[old_col] = new_col
+                        
+                        # Update columns_to_keep with renamed columns
+                        columns_to_keep = [old_to_new.get(col, col) for col in columns_to_keep]
+                    
                     # Ensure all columns to keep actually exist in the DataFrame
                     existing_cols = self.cleaned_df.columns.tolist()
                     cols_to_select = [col for col in columns_to_keep if col in existing_cols]
@@ -825,6 +903,75 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 else:
                     case_type = "lower"
 
+            # NEW: Column Renaming section (before column management)
+            with st.expander("✏️ Column Renaming", expanded=False):
+                st.info("Rename columns to improve data quality and consistency.")
+                
+                enable_column_renaming = st.checkbox("Enable column renaming", key="enable_column_renaming")
+                
+                if enable_column_renaming:
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**Automatic Transformations:**")
+                        remove_spaces = st.checkbox("Remove spaces (replace with underscores)", key="remove_spaces_cols")
+                        to_camel_case = st.checkbox("Convert to camelCase", key="to_camel_case_cols")
+                        
+                        if remove_spaces and to_camel_case:
+                            st.warning("⚠️ Both options selected: camelCase will be applied after removing spaces")
+                    
+                    with col2:
+                        st.markdown("**Preview of automatic changes:**")
+                        if current_columns_for_selection:
+                            preview_cols = current_columns_for_selection[:3]  # Show first 3 as examples
+                            for col in preview_cols:
+                                original = col
+                                transformed = col
+                                
+                                if remove_spaces:
+                                    transformed = processor.remove_spaces_from_text(transformed)
+                                if to_camel_case:
+                                    transformed = processor.to_camel_case(transformed)
+                                
+                                if transformed != original:
+                                    st.text(f"{original} → {transformed}")
+                            
+                            if len(current_columns_for_selection) > 3:
+                                st.caption(f"... and {len(current_columns_for_selection) - 3} more columns")
+                        else:
+                            st.caption("No columns to preview")
+                    
+                    # Manual column renaming
+                    st.markdown("**Manual Column Renaming:**")
+                    st.info("Specify custom names for individual columns (overrides automatic transformations)")
+                    
+                    if current_columns_for_selection:
+                        # Create a form for manual renames
+                        manual_renames = {}
+                        
+                        # Show in a more compact format
+                        cols_per_row = 2
+                        for i in range(0, len(current_columns_for_selection), cols_per_row):
+                            row_cols = current_columns_for_selection[i:i+cols_per_row]
+                            form_cols = st.columns(len(row_cols))
+                            
+                            for j, col_name in enumerate(row_cols):
+                                with form_cols[j]:
+                                    new_name = st.text_input(
+                                        f"Rename '{col_name}':",
+                                        value="",
+                                        placeholder=f"Leave empty to keep '{col_name}'",
+                                        key=f"manual_rename_{col_name}",
+                                        help=f"Enter new name for column '{col_name}' or leave empty"
+                                    )
+                                    if new_name.strip():
+                                        manual_renames[col_name] = new_name.strip()
+                        
+                        if manual_renames:
+                            st.success(f"✅ {len(manual_renames)} manual renames configured")
+                    else:
+                        st.warning("No columns available for renaming")
+
             # NEW: Column Management section (first step - select columns to keep)
             with st.expander("🛠️ Column Management", expanded=False):
                 # Recalculate columns every time to include newly added columns
@@ -995,6 +1142,14 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
             
             # Process data
             if st.button("🚀 Clean Data", type="primary", use_container_width=True):
+                # Collect manual renames from session state
+                manual_renames = {}
+                if current_columns_for_selection:
+                    for col_name in current_columns_for_selection:
+                        rename_key = f"manual_rename_{col_name}"
+                        if rename_key in st.session_state and st.session_state[rename_key].strip():
+                            manual_renames[col_name] = st.session_state[rename_key].strip()
+                
                 cleaning_options = {
                     'merge_files': merge_files,
                     'keep_first_header_only': keep_first_header_only,
@@ -1004,7 +1159,13 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                     'strip_whitespace': strip_whitespace,
                     'standardize_case': standardize_case,
                     'case_type': case_type,
-                    'columns_to_keep': columns_to_keep # Pass selected columns to keep
+                    'columns_to_keep': columns_to_keep, # Pass selected columns to keep
+                    'column_rename_options': {
+                        'enable_column_renaming': st.session_state.get('enable_column_renaming', False),
+                        'remove_spaces': st.session_state.get('remove_spaces_cols', False),
+                        'to_camel_case': st.session_state.get('to_camel_case_cols', False),
+                        'manual_renames': manual_renames
+                    }
                 }
                 
                 if processor.clean_data(cleaning_options):
