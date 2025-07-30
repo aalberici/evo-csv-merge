@@ -58,8 +58,8 @@ def check_authentication():
     if not st.session_state.authenticated:
         st.markdown("""
         <div class="main-header">
-            <h1>Login Required</h1>
-            <p>Please enter your credentials to access the Porrettana Data Suite</p>
+            <h1>Porrettana Data Suite</h1>
+            <p>Please enter your credentials to access</p>
         </div>
         """, unsafe_allow_html=True)
         
