@@ -1710,10 +1710,10 @@ def convert_df_to_excel(df):
 
 def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the data cleaning interface"""
-    st.header("Data Cleaning Tool")
+    st.subheader("Data Cleaning Tool")
     
     # Data source selection
-    st.subheader("Select Data Source")
+    st.markdown("### Select Data Source")
     
     data_source = st.radio(
         "Choose your data source:",
@@ -2177,7 +2177,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
             
             # Show cleaned results
             if processor.cleaned_df is not None:
-                st.subheader("Cleaned Data Results")
+                st.markdown("### Cleaned Data Results")
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -2192,7 +2192,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                 st.dataframe(processor.cleaned_df.head(20), use_container_width=True)
                 
                 # Save as artifact
-                st.subheader("Save & Download")
+                st.markdown("### Save & Download")
                 
                 col1, col2 = st.columns([2, 1])
                 
@@ -2254,7 +2254,7 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
 
 def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the automated cleaning interface"""
-    st.header("Automated Cleaning Tool")
+    st.subheader("Automated Cleaning Tool")
     st.info("Apply saved cleaning configurations to new data automatically")
     
     # Check if we have any saved configurations
@@ -2264,7 +2264,7 @@ def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: A
         return
     
     # Configuration selection
-    st.subheader("Select Configuration")
+    st.markdown("### Select Configuration")
     selected_config_name = st.selectbox(
         "Choose a saved configuration:",
         [""] + configs,
@@ -2288,7 +2288,7 @@ def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: A
                 st.json(config.config)
             
             # Data source selection
-            st.subheader("Select Data Source")
+            st.markdown("### Select Data Source")
             
             data_source = st.radio(
                 "Choose your data source:",
@@ -2364,7 +2364,7 @@ def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: A
             
             # Execute automated cleaning
             if files_loaded:
-                st.subheader("Execute Automated Cleaning")
+                st.markdown("### Execute Automated Cleaning")
                 
                 # Show data preview
                 if st.checkbox("Show data preview", value=True, key="auto_show_preview"):
@@ -2398,7 +2398,7 @@ def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: A
                 
                 # Show results if available
                 if processor.cleaned_df is not None:
-                    st.subheader("Automated Cleaning Results")
+                    st.markdown("### Automated Cleaning Results")
                     
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -2412,7 +2412,7 @@ def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: A
                     st.dataframe(processor.cleaned_df.head(20), use_container_width=True)
                     
                     # Save and download options
-                    st.subheader("Save & Download")
+                    st.markdown("### Save & Download")
                     
                     col1, col2 = st.columns([2, 1])
                     
@@ -2472,10 +2472,10 @@ def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: A
 
 def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the CSV merger interface"""
-    st.header("CSV Merger Tool")
+    st.subheader("CSV Merger Tool")
     
     # Data source selection
-    st.subheader("Select Data Sources")
+    st.markdown("### Select Data Sources")
     
     col1, col2 = st.columns(2)
     
@@ -2576,7 +2576,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
         processor.dataframes[1] is not None):
         
         # Show file previews
-        st.subheader("Data Preview")
+        st.markdown("### Data Preview")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -2590,7 +2590,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             st.caption(f"{len(processor.dataframes[1]):,} rows, {len(processor.dataframes[1].columns)} columns")
         
         # Key selection
-        st.subheader("Join Configuration")
+        st.markdown("### Join Configuration")
         
         col1, col2, col3 = st.columns([2, 2, 1])
         
@@ -2643,7 +2643,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
         
         # Show merge results
         if processor.merged_df is not None:
-            st.subheader("Merge Results")
+            st.markdown("### Merge Results")
             
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -2656,7 +2656,7 @@ def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactM
             st.dataframe(processor.merged_df.head(20), use_container_width=True)
             
             # Save merged result as artifact
-            st.subheader("Save & Download")
+            st.markdown("### Save & Download")
             
             col1, col2 = st.columns([2, 1])
             
