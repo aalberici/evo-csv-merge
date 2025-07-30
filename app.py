@@ -1221,6 +1221,30 @@ class DataProcessor:
     def clean_data(self, options: Dict[str, Any]) -> bool:
         """Clean data based on provided options"""
         try:
+            # Apply new columns first (before merging or other operations)
+            new_columns_config = options.get('new_columns', [])
+            if new_columns_config:
+                for i, df in enumerate(self.dataframes):
+                    if df is not None:
+                        for col_config in new_columns_config:
+                            col_kwargs = {
+                                'autonum_start': col_config.get('autonum_start', 1),
+                                'fixed_value': col_config.get('fixed_value', ''),
+                                'random_int_min': col_config.get('random_int_min', 0),
+                                'random_int_max': col_config.get('random_int_max', 100),
+                                'random_float_min': col_config.get('random_float_min', 0.0),
+                                'random_float_max': col_config.get('random_float_max', 1.0),
+                                'source_column': col_config.get('source_column', ''),
+                                'increment_by': col_config.get('increment_by', 1)
+                            }
+                            self.dataframes[i] = self.add_new_column(
+                                self.dataframes[i], 
+                                col_config['name'], 
+                                col_config['type'], 
+                                **col_kwargs
+                            )
+                st.success(f"✅ Applied {len(new_columns_config)} new column(s) from configuration")
+            
             if options.get('merge_files', False) and len(self.dataframes) > 1:
                 # Merge multiple files
                 valid_dfs = [df for df in self.dataframes if df is not None]
@@ -2052,6 +2076,26 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                 if rename_key in st.session_state and st.session_state[rename_key].strip():
                                     manual_renames[col_name] = st.session_state[rename_key].strip()
                         
+                        # Collect new column configurations from session state
+                        new_columns_config = []
+                        counter = st.session_state.get('add_column_counter', 0)
+                        for i in range(counter + 1):  # Include current counter value
+                            col_name_key = f"new_col_name_pre_clean_{i}"
+                            if col_name_key in st.session_state and st.session_state[col_name_key].strip():
+                                col_config = {
+                                    'name': st.session_state[col_name_key].strip(),
+                                    'type': st.session_state.get('new_col_type_pre_clean', 'Autonumber'),
+                                    'autonum_start': st.session_state.get('autonum_start_pre_clean', 1),
+                                    'fixed_value': st.session_state.get('fixed_value_pre_clean', ''),
+                                    'random_int_min': st.session_state.get('rand_int_min_pre_clean', 0),
+                                    'random_int_max': st.session_state.get('rand_int_max_pre_clean', 100),
+                                    'random_float_min': st.session_state.get('rand_float_min_pre_clean', 0.0),
+                                    'random_float_max': st.session_state.get('rand_float_max_pre_clean', 1.0),
+                                    'source_column': st.session_state.get('source_col_increment_pre_clean', ''),
+                                    'increment_by': st.session_state.get('increment_by_pre_clean', 1)
+                                }
+                                new_columns_config.append(col_config)
+                        
                         cleaning_options = {
                             'merge_files': merge_files,
                             'keep_first_header_only': keep_first_header_only,
@@ -2067,7 +2111,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                                 'remove_spaces': st.session_state.get('remove_spaces_cols', False),
                                 'to_camel_case': st.session_state.get('to_camel_case_cols', False),
                                 'manual_renames': manual_renames
-                            }
+                            },
+                            'new_columns': new_columns_config
                         }
                         
                         config = CleaningConfig(name=config_name.strip(), config=cleaning_options)
@@ -2087,6 +2132,26 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         if rename_key in st.session_state and st.session_state[rename_key].strip():
                             manual_renames[col_name] = st.session_state[rename_key].strip()
                 
+                # Collect new column configurations from session state
+                new_columns_config = []
+                counter = st.session_state.get('add_column_counter', 0)
+                for i in range(counter + 1):  # Include current counter value
+                    col_name_key = f"new_col_name_pre_clean_{i}"
+                    if col_name_key in st.session_state and st.session_state[col_name_key].strip():
+                        col_config = {
+                            'name': st.session_state[col_name_key].strip(),
+                            'type': st.session_state.get('new_col_type_pre_clean', 'Autonumber'),
+                            'autonum_start': st.session_state.get('autonum_start_pre_clean', 1),
+                            'fixed_value': st.session_state.get('fixed_value_pre_clean', ''),
+                            'random_int_min': st.session_state.get('rand_int_min_pre_clean', 0),
+                            'random_int_max': st.session_state.get('rand_int_max_pre_clean', 100),
+                            'random_float_min': st.session_state.get('rand_float_min_pre_clean', 0.0),
+                            'random_float_max': st.session_state.get('rand_float_max_pre_clean', 1.0),
+                            'source_column': st.session_state.get('source_col_increment_pre_clean', ''),
+                            'increment_by': st.session_state.get('increment_by_pre_clean', 1)
+                        }
+                        new_columns_config.append(col_config)
+                
                 cleaning_options = {
                     'merge_files': merge_files,
                     'keep_first_header_only': keep_first_header_only,
@@ -2102,7 +2167,8 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         'remove_spaces': st.session_state.get('remove_spaces_cols', False),
                         'to_camel_case': st.session_state.get('to_camel_case_cols', False),
                         'manual_renames': manual_renames
-                    }
+                    },
+                    'new_columns': new_columns_config
                 }
                 
                 if processor.clean_data(cleaning_options):
