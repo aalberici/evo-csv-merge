@@ -626,6 +626,49 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+class CleaningConfig:
+    """Class to represent a data cleaning configuration"""
+    
+    def __init__(self, name: str, config: Dict[str, Any], created_at: datetime = None):
+        self.name = name
+        self.config = config.copy()
+        self.created_at = created_at or datetime.now()
+    
+    def get_summary(self) -> str:
+        operations = []
+        if self.config.get('merge_files', False):
+            operations.append("merge")
+        if self.config.get('remove_duplicates', False):
+            operations.append("dedup")
+        if self.config.get('remove_empty_rows', True):
+            operations.append("clean_rows")
+        if self.config.get('strip_whitespace', True):
+            operations.append("trim")
+        if self.config.get('column_rename_options', {}).get('enable_column_renaming', False):
+            operations.append("rename_cols")
+        if self.config.get('columns_to_keep'):
+            operations.append("filter_cols")
+        
+        ops_str = ", ".join(operations) if operations else "basic"
+        return f"{self.name} | {ops_str} | {self.created_at.strftime('%m/%d %H:%M')}"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary for JSON serialization"""
+        return {
+            'name': self.name,
+            'config': self.config,
+            'created_at': self.created_at.isoformat()
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CleaningConfig':
+        """Create config from dictionary"""
+        return cls(
+            name=data['name'],
+            config=data['config'],
+            created_at=datetime.fromisoformat(data['created_at'])
+        )
+
 class DataArtifact:
     """Class to represent a data artifact with metadata"""
     
@@ -666,18 +709,20 @@ class DataArtifact:
         return artifact
 
 class ArtifactManager:
-    """Manages data artifacts across the application with persistent storage"""
+    """Manages data artifacts and cleaning configurations across the application with persistent storage"""
     
     def __init__(self):
         self.artifacts_dir = "artifacts"
         self.artifacts_file = os.path.join(self.artifacts_dir, "artifacts.json")
+        self.configs_file = os.path.join(self.artifacts_dir, "cleaning_configs.json")
         
         # Create artifacts directory if it doesn't exist
         if not os.path.exists(self.artifacts_dir):
             os.makedirs(self.artifacts_dir)
         
-        # Load artifacts from disk
+        # Load artifacts and configs from disk
         self._load_artifacts()
+        self._load_configs()
     
     def _load_artifacts(self):
         """Load artifacts from persistent storage"""
@@ -695,6 +740,22 @@ class ArtifactManager:
             st.error(f"Failed to load artifacts: {str(e)}")
             st.session_state.artifacts = {}
     
+    def _load_configs(self):
+        """Load cleaning configurations from persistent storage"""
+        try:
+            if os.path.exists(self.configs_file):
+                with open(self.configs_file, 'r', encoding='utf-8') as f:
+                    configs_data = json.load(f)
+                    configs = {}
+                    for name, data in configs_data.items():
+                        configs[name] = CleaningConfig.from_dict(data)
+                    st.session_state.cleaning_configs = configs
+            else:
+                st.session_state.cleaning_configs = {}
+        except Exception as e:
+            st.error(f"Failed to load cleaning configurations: {str(e)}")
+            st.session_state.cleaning_configs = {}
+    
     def _save_artifacts_to_disk(self):
         """Save artifacts to persistent storage"""
         try:
@@ -707,6 +768,20 @@ class ArtifactManager:
             return True
         except Exception as e:
             st.error(f"Failed to save artifacts to disk: {str(e)}")
+            return False
+    
+    def _save_configs_to_disk(self):
+        """Save cleaning configurations to persistent storage"""
+        try:
+            configs_data = {}
+            for name, config in st.session_state.cleaning_configs.items():
+                configs_data[name] = config.to_dict()
+            
+            with open(self.configs_file, 'w', encoding='utf-8') as f:
+                json.dump(configs_data, f, indent=2)
+            return True
+        except Exception as e:
+            st.error(f"Failed to save cleaning configurations to disk: {str(e)}")
             return False
     
     def save_artifact(self, artifact: DataArtifact) -> bool:
@@ -746,6 +821,42 @@ class ArtifactManager:
             return True
         except Exception as e:
             st.error(f"Failed to clear artifacts: {str(e)}")
+            return False
+    
+    # Cleaning Configuration Management Methods
+    def save_cleaning_config(self, config: CleaningConfig) -> bool:
+        """Save a cleaning configuration to session state and persistent storage"""
+        try:
+            st.session_state.cleaning_configs[config.name] = config
+            return self._save_configs_to_disk()
+        except Exception as e:
+            st.error(f"Failed to save cleaning configuration: {str(e)}")
+            return False
+    
+    def get_cleaning_config(self, name: str) -> Optional[CleaningConfig]:
+        """Retrieve a cleaning configuration by name"""
+        return st.session_state.cleaning_configs.get(name)
+    
+    def list_cleaning_configs(self) -> List[str]:
+        """Get list of all cleaning configuration names"""
+        return list(st.session_state.cleaning_configs.keys())
+    
+    def delete_cleaning_config(self, name: str) -> bool:
+        """Delete a cleaning configuration from session state and persistent storage"""
+        if name in st.session_state.cleaning_configs:
+            del st.session_state.cleaning_configs[name]
+            return self._save_configs_to_disk()
+        return False
+    
+    def clear_all_configs(self) -> bool:
+        """Clear all cleaning configurations from memory and disk"""
+        try:
+            st.session_state.cleaning_configs = {}
+            if os.path.exists(self.configs_file):
+                os.remove(self.configs_file)
+            return True
+        except Exception as e:
+            st.error(f"Failed to clear cleaning configurations: {str(e)}")
             return False
 
 class DataProcessor:
@@ -1215,21 +1326,25 @@ class DataProcessor:
 
 def render_artifact_manager(artifact_manager: ArtifactManager):
     """Render the artifact management interface"""
-    artifacts = artifact_manager.list_artifacts()
+    # Tabs for artifacts and configurations
+    tab1, tab2 = st.tabs(["📊 Artifacts", "⚙️ Configs"])
     
-    # Header with modern styling
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%); 
-                padding: 1rem; border-radius: var(--radius-lg); margin-bottom: 1rem; 
-                box-shadow: var(--shadow-md); position: relative; overflow: hidden;">
-        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
-                    background: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E'); 
-                    opacity: 0.3;"></div>
-        <h4 style="color: white; margin: 0; font-size: 1rem; font-weight: 600; position: relative; z-index: 1;">
-            Data Artifacts
-        </h4>
-    </div>
-    """, unsafe_allow_html=True)
+    with tab1:
+        artifacts = artifact_manager.list_artifacts()
+        
+        # Header with modern styling
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%); 
+                    padding: 1rem; border-radius: var(--radius-lg); margin-bottom: 1rem; 
+                    box-shadow: var(--shadow-md); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+                        background: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E'); 
+                        opacity: 0.3;"></div>
+            <h4 style="color: white; margin: 0; font-size: 1rem; font-weight: 600; position: relative; z-index: 1;">
+                Data Artifacts
+            </h4>
+        </div>
+        """, unsafe_allow_html=True)
     
     if artifacts:
         # Bulk actions
@@ -1390,18 +1505,171 @@ def render_artifact_manager(artifact_manager: ArtifactManager):
                            unsafe_allow_html=True)
     
     else:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem 2rem; color: var(--neutral-500); 
+                       background: white; border-radius: var(--radius-xl); 
+                       border: 2px dashed var(--neutral-300); box-shadow: var(--shadow-sm);">
+                <h4 style="color: var(--neutral-600); font-weight: 600; margin-bottom: 0.5rem;">
+                    No Artifacts Yet
+                </h4>
+                <p style="margin: 0; color: var(--neutral-500);">
+                    Create some in the Data Cleaning tool to get started!
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with tab2:
+        configs = artifact_manager.list_cleaning_configs()
+        
+        # Header for configurations
         st.markdown("""
-        <div style="text-align: center; padding: 3rem 2rem; color: var(--neutral-500); 
-                   background: white; border-radius: var(--radius-xl); 
-                   border: 2px dashed var(--neutral-300); box-shadow: var(--shadow-sm);">
-            <h4 style="color: var(--neutral-600); font-weight: 600; margin-bottom: 0.5rem;">
-                No Artifacts Yet
+        <div style="background: linear-gradient(135deg, var(--secondary-600) 0%, var(--secondary-700) 100%); 
+                    padding: 1rem; border-radius: var(--radius-lg); margin-bottom: 1rem; 
+                    box-shadow: var(--shadow-md); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+                        background: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E'); 
+                        opacity: 0.3;"></div>
+            <h4 style="color: white; margin: 0; font-size: 1rem; font-weight: 600; position: relative; z-index: 1;">
+                Cleaning Configurations
             </h4>
-            <p style="margin: 0; color: var(--neutral-500);">
-                Create some in the Data Cleaning tool to get started!
-            </p>
         </div>
         """, unsafe_allow_html=True)
+        
+        if configs:
+            # Bulk actions for configs
+            with st.expander("Bulk Actions", expanded=False):
+                if st.button("Clear All Configs", type="secondary", use_container_width=True, key="clear_all_configs"):
+                    if st.session_state.get('confirm_clear_all_configs', False):
+                        if artifact_manager.clear_all_configs():
+                            st.success("✅ All configurations cleared!")
+                            st.session_state.confirm_clear_all_configs = False
+                            st.rerun()
+                    else:
+                        st.session_state.confirm_clear_all_configs = True
+                        st.warning("⚠️ Click again to confirm")
+                        st.rerun()
+            
+            # Configurations list
+            for config_name in configs:
+                config = artifact_manager.get_cleaning_config(config_name)
+                
+                with st.container():
+                    st.markdown(f"""
+                    <div class="modern-card slide-in" style="border-left: 4px solid var(--secondary-500); margin: 1rem 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: var(--neutral-900); font-size: 1rem; font-weight: 600;">
+                                    {config.name}
+                                </strong><br>
+                                <div style="margin: 0.5rem 0; color: var(--neutral-600); font-size: 0.875rem;">
+                                    <span style="background: var(--secondary-100); color: var(--secondary-700); 
+                                               padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); 
+                                               font-weight: 500;">
+                                        {config.get_summary().split(' | ')[1]}
+                                    </span>
+                                </div>
+                                <small style="color: var(--neutral-500); font-size: 0.75rem;">
+                                    {config.created_at.strftime('%m/%d %H:%M')}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Action buttons
+                    col1, col2, col3 = st.columns([1, 1, 1])
+                    
+                    with col1:
+                        if st.button("◉ View", key=f"view_config_{config_name}", 
+                                   help="View configuration details", use_container_width=True):
+                            st.session_state[f"show_config_popup_{config_name}"] = True
+                    
+                    with col2:
+                        if st.button("◈ Rename", key=f"rename_config_{config_name}", 
+                                   help="Rename configuration", use_container_width=True):
+                            st.session_state[f"rename_config_mode_{config_name}"] = True
+                            st.rerun()
+                    
+                    with col3:
+                        if st.button("◌ Delete", key=f"delete_config_{config_name}", 
+                                   help="Delete configuration", use_container_width=True):
+                            if st.session_state.get(f'confirm_delete_config_{config_name}', False):
+                                if artifact_manager.delete_cleaning_config(config_name):
+                                    st.success(f"✓ Deleted")
+                                    st.session_state[f'confirm_delete_config_{config_name}'] = False
+                                    st.rerun()
+                            else:
+                                st.session_state[f'confirm_delete_config_{config_name}'] = True
+                                st.warning("⚠ Click again to confirm")
+                                st.rerun()
+                    
+                    # Rename dialog for configs
+                    if st.session_state.get(f"rename_config_mode_{config_name}", False):
+                        @st.dialog(f"✏️ Rename Config: {config_name}")
+                        def show_config_rename_dialog():
+                            new_name = st.text_input("New name:", value=config_name, key=f"new_config_name_{config_name}")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button("◆ Save", key="save_config_rename", type="primary", use_container_width=True):
+                                    if new_name.strip() and new_name.strip() != config_name:
+                                        if new_name.strip() not in artifact_manager.list_cleaning_configs():
+                                            # Create new config with new name
+                                            new_config = CleaningConfig(
+                                                name=new_name.strip(),
+                                                config=config.config.copy(),
+                                                created_at=config.created_at
+                                            )
+                                            if artifact_manager.save_cleaning_config(new_config):
+                                                # Delete old config
+                                                artifact_manager.delete_cleaning_config(config_name)
+                                                st.success(f"✅ Renamed to {new_name.strip()}")
+                                                st.session_state[f"rename_config_mode_{config_name}"] = False
+                                                st.rerun()
+                                        else:
+                                            st.error("❌ Name already exists")
+                                    else:
+                                        st.error("❌ Enter a valid new name")
+                            
+                            with col2:
+                                if st.button("◇ Cancel", key="cancel_config_rename", use_container_width=True):
+                                    st.session_state[f"rename_config_mode_{config_name}"] = False
+                                    st.rerun()
+                        
+                        show_config_rename_dialog()
+                    
+                    # Preview dialog for configs
+                    if st.session_state.get(f"show_config_popup_{config_name}", False):
+                        @st.dialog(f"⚙️ {config_name}")
+                        def show_config_preview():
+                            st.markdown(f"**Created:** {config.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                            st.markdown(f"**Summary:** {config.get_summary()}")
+                            
+                            st.markdown("**Configuration Details:**")
+                            st.json(config.config)
+                            
+                            if st.button("◇ Close", key="close_config_preview", type="primary", use_container_width=True):
+                                st.session_state[f"show_config_popup_{config_name}"] = False
+                                st.rerun()
+                        
+                        show_config_preview()
+                    
+                    st.markdown("<hr style='margin: 0.5rem 0; border: none; border-top: 1px solid #eee;'>", 
+                               unsafe_allow_html=True)
+        
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem 2rem; color: var(--neutral-500); 
+                       background: white; border-radius: var(--radius-xl); 
+                       border: 2px dashed var(--neutral-300); box-shadow: var(--shadow-sm);">
+                <h4 style="color: var(--neutral-600); font-weight: 600; margin-bottom: 0.5rem;">
+                    No Configurations Yet
+                </h4>
+                <p style="margin: 0; color: var(--neutral-500);">
+                    Save some configurations in the Data Cleaning tool to get started!
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 @st.cache_data
 def convert_df_to_csv(df):
@@ -1764,6 +2032,51 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         with st.expander(f"📄 {processor.file_names[i]} ({len(df):,} rows, {len(df.columns)} columns)"):
                             st.dataframe(df.head(10), use_container_width=True)
             
+            # Configuration saving section
+            with st.expander("Save Configuration", expanded=False):
+                st.info("Save this cleaning configuration to reuse later in Automated Cleaning")
+                
+                config_name = st.text_input(
+                    "Configuration name:",
+                    value=f"config_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    help="Give this configuration a name to reuse it later"
+                )
+                
+                if st.button("Save Configuration", type="secondary", use_container_width=True):
+                    if config_name.strip():
+                        # Collect manual renames from session state
+                        manual_renames = {}
+                        if current_columns_for_selection:
+                            for col_name in current_columns_for_selection:
+                                rename_key = f"manual_rename_{col_name}"
+                                if rename_key in st.session_state and st.session_state[rename_key].strip():
+                                    manual_renames[col_name] = st.session_state[rename_key].strip()
+                        
+                        cleaning_options = {
+                            'merge_files': merge_files,
+                            'keep_first_header_only': keep_first_header_only,
+                            'remove_duplicates': remove_duplicates,
+                            'remove_empty_rows': remove_empty_rows,
+                            'remove_empty_columns': remove_empty_columns,
+                            'strip_whitespace': strip_whitespace,
+                            'standardize_case': standardize_case,
+                            'case_type': case_type,
+                            'columns_to_keep': columns_to_keep,
+                            'column_rename_options': {
+                                'enable_column_renaming': st.session_state.get('enable_column_renaming', False),
+                                'remove_spaces': st.session_state.get('remove_spaces_cols', False),
+                                'to_camel_case': st.session_state.get('to_camel_case_cols', False),
+                                'manual_renames': manual_renames
+                            }
+                        }
+                        
+                        config = CleaningConfig(name=config_name.strip(), config=cleaning_options)
+                        if artifact_manager.save_cleaning_config(config):
+                            st.success(f"✅ Configuration saved: {config_name}")
+                            st.rerun()
+                    else:
+                        st.error("Please enter a configuration name")
+
             # Process data
             if st.button("Clean Data", type="primary", use_container_width=True):
                 # Collect manual renames from session state
@@ -1872,6 +2185,224 @@ def render_data_cleaning_tool(processor: DataProcessor, artifact_manager: Artifa
                         use_container_width=True
                     )
 
+
+def render_automated_cleaning_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
+    """Render the automated cleaning interface"""
+    st.header("Automated Cleaning Tool")
+    st.info("Apply saved cleaning configurations to new data automatically")
+    
+    # Check if we have any saved configurations
+    configs = artifact_manager.list_cleaning_configs()
+    if not configs:
+        st.warning("No saved configurations found. Create some in the Data Cleaning tool first!")
+        return
+    
+    # Configuration selection
+    st.subheader("Select Configuration")
+    selected_config_name = st.selectbox(
+        "Choose a saved configuration:",
+        [""] + configs,
+        help="Select a previously saved cleaning configuration"
+    )
+    
+    if selected_config_name:
+        config = artifact_manager.get_cleaning_config(selected_config_name)
+        if config:
+            # Show configuration summary
+            st.markdown(f"""
+            <div class="modern-card">
+                <h4>Configuration: {config.name}</h4>
+                <p><strong>Summary:</strong> {config.get_summary()}</p>
+                <p><strong>Created:</strong> {config.created_at.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Show configuration details
+            with st.expander("Configuration Details", expanded=False):
+                st.json(config.config)
+            
+            # Data source selection
+            st.subheader("Select Data Source")
+            
+            data_source = st.radio(
+                "Choose your data source:",
+                ["Upload Files", "Use Artifacts", "Paste Text"],
+                key="auto_cleaning_data_source",
+                horizontal=True
+            )
+            
+            if data_source == "Upload Files":
+                uploaded_files = st.file_uploader(
+                    "Choose CSV files",
+                    type="csv",
+                    accept_multiple_files=True,
+                    help="Upload files to apply the configuration to",
+                    key="auto_cleaning_uploader"
+                )
+                
+                files_loaded = False
+                if uploaded_files:
+                    if processor.load_files(uploaded_files):
+                        st.success(f"✅ Loaded {len(processor.dataframes)} file(s)")
+                        files_loaded = True
+            
+            elif data_source == "Use Artifacts":
+                artifacts = artifact_manager.list_artifacts()
+                if artifacts:
+                    selected_artifacts = st.multiselect(
+                        "Select artifacts to process:",
+                        options=artifacts,
+                        help="Choose artifacts to apply the configuration to",
+                        key="auto_cleaning_artifacts_select"
+                    )
+                    
+                    files_loaded = False
+                    if selected_artifacts:
+                        processor.dataframes = []
+                        processor.file_names = []
+                        
+                        for artifact_name in selected_artifacts:
+                            artifact = artifact_manager.get_artifact(artifact_name)
+                            if artifact:
+                                processor.dataframes.append(artifact.dataframe.copy())
+                                processor.file_names.append(f"Artifact: {artifact_name}")
+                        
+                        if processor.dataframes:
+                            st.success(f"✅ Loaded {len(processor.dataframes)} artifact(s)")
+                            files_loaded = True
+                else:
+                    st.info("No artifacts available.")
+                    files_loaded = False
+            
+            else:  # Paste Text
+                pasted_text = st.text_area(
+                    "Paste CSV data here:",
+                    height=200,
+                    placeholder="Paste your CSV data or Markdown table here...",
+                    key="auto_cleaning_pasted_text"
+                )
+                
+                files_loaded = False
+                if pasted_text.strip():
+                    if st.button("Parse Pasted Data", type="secondary", key="auto_parse_data"):
+                        processor.dataframes = []
+                        processor.file_names = []
+                        
+                        if processor.load_pasted_text(pasted_text, 0, "Auto Cleaning Pasted Data"):
+                            st.success("✅ Successfully parsed pasted data!")
+                            files_loaded = True
+                            st.rerun()
+                
+                if len(processor.dataframes) > 0 and processor.dataframes[0] is not None:
+                    files_loaded = True
+            
+            # Execute automated cleaning
+            if files_loaded:
+                st.subheader("Execute Automated Cleaning")
+                
+                # Show data preview
+                if st.checkbox("Show data preview", value=True, key="auto_show_preview"):
+                    for i, df in enumerate(processor.dataframes):
+                        if df is not None:
+                            with st.expander(f"📄 {processor.file_names[i]} ({len(df):,} rows, {len(df.columns)} columns)"):
+                                st.dataframe(df.head(5), use_container_width=True)
+                
+                # Configuration compatibility check
+                config_columns = config.config.get('columns_to_keep', [])
+                if config_columns:
+                    # Check if configured columns exist in the data
+                    available_columns = set()
+                    for df in processor.dataframes:
+                        if df is not None:
+                            available_columns.update(df.columns)
+                    
+                    missing_columns = set(config_columns) - available_columns
+                    if missing_columns:
+                        st.warning(f"⚠️ Configuration expects columns that are not in your data: {', '.join(missing_columns)}")
+                        st.info("The cleaning will proceed with available columns only.")
+                
+                # Execute button
+                if st.button("🚀 Execute Automated Cleaning", type="primary", use_container_width=True):
+                    with st.spinner("Applying configuration..."):
+                        if processor.clean_data(config.config):
+                            st.success("✅ Automated cleaning completed successfully!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Automated cleaning failed!")
+                
+                # Show results if available
+                if processor.cleaned_df is not None:
+                    st.subheader("Automated Cleaning Results")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Rows", f"{len(processor.cleaned_df):,}")
+                    with col2:
+                        st.metric("Columns", len(processor.cleaned_df.columns))
+                    with col3:
+                        memory_mb = processor.cleaned_df.memory_usage(deep=True).sum() / 1024 / 1024
+                        st.metric("Memory", f"{memory_mb:.2f} MB")
+                    
+                    st.dataframe(processor.cleaned_df.head(20), use_container_width=True)
+                    
+                    # Save and download options
+                    st.subheader("Save & Download")
+                    
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        auto_artifact_name = st.text_input(
+                            "Save as artifact:",
+                            value=f"auto_cleaned_{selected_config_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                            help="Save the automatically cleaned data as an artifact"
+                        )
+                    
+                    with col2:
+                        if st.button("Save as Artifact", type="primary", use_container_width=True, key="auto_save_artifact"):
+                            if auto_artifact_name.strip():
+                                artifact = DataArtifact(
+                                    name=auto_artifact_name.strip(),
+                                    dataframe=processor.cleaned_df.copy(),
+                                    source="automated_cleaning"
+                                )
+                                if artifact_manager.save_artifact(artifact):
+                                    st.success(f"✅ Saved as artifact: {auto_artifact_name}")
+                                    st.rerun()
+                            else:
+                                st.error("Please enter an artifact name")
+                    
+                    # Download options
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        csv_data = convert_df_to_csv(processor.cleaned_df)
+                        st.download_button(
+                            "▼ Download CSV",
+                            data=csv_data,
+                            file_name=f"auto_cleaned_{selected_config_name}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+                    
+                    with col2:
+                        excel_data = convert_df_to_excel(processor.cleaned_df)
+                        st.download_button(
+                            "▼ Download Excel",
+                            data=excel_data,
+                            file_name=f"auto_cleaned_{selected_config_name}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                    
+                    with col3:
+                        json_data = processor.cleaned_df.to_json(orient='records', indent=2)
+                        st.download_button(
+                            "▼ Download JSON",
+                            data=json_data,
+                            file_name=f"auto_cleaned_{selected_config_name}.json",
+                            mime="application/json",
+                            use_container_width=True
+                        )
 
 def render_csv_merger_tool(processor: DataProcessor, artifact_manager: ArtifactManager):
     """Render the CSV merger interface"""
@@ -2157,12 +2688,15 @@ def main():
     processor = st.session_state.processor
     
     # Navigation tabs
-    tab1, tab2 = st.tabs(["Data Cleaning", "CSV Merger"])
+    tab1, tab2, tab3 = st.tabs(["Data Cleaning", "Automated Cleaning", "CSV Merger"])
     
     with tab1:
         render_data_cleaning_tool(processor, artifact_manager)
     
     with tab2:
+        render_automated_cleaning_tool(processor, artifact_manager)
+    
+    with tab3:
         render_csv_merger_tool(processor, artifact_manager)
     
     # Footer
