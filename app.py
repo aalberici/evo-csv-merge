@@ -42,7 +42,7 @@ def init_lucide_icons():
 
 # Page configuration
 st.set_page_config(
-    page_title="CSV Data Processing Suite",
+    page_title="Porrettana Data Suite",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -59,7 +59,7 @@ def check_authentication():
         st.markdown("""
         <div class="main-header">
             <h1>Login Required</h1>
-            <p>Please enter your credentials to access the CSV Processing Suite</p>
+            <p>Please enter your credentials to access the Porrettana Data Suite</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2744,7 +2744,7 @@ def main():
     with col1:
         st.image("evo-logo.png", width=120)
     with col2:
-        st.title("CSV Data Processing Suite")
+        st.title("Porrettana Data Suite")
         st.caption("Complete toolkit for CSV data cleaning, merging, and analysis")
     
     # Initialize processor
@@ -2768,7 +2768,7 @@ def main():
     # Footer
     st.markdown("""
     <div class="footer">
-        <p>Built with Streamlit | Professional CSV Data Processing Suite</p>
+        <p>Built with Streamlit | Porrettana Data Suite</p>
         <p><strong>Workflow:</strong> Clean Data → Save as Artifact → Use in Merger → Export Results</p>
     </div>
     """, unsafe_allow_html=True)
